@@ -1,164 +1,266 @@
 ---
-import { getCollection, render } from "astro:content";
+import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Container from "../../components/layout/Container.astro";
-import RecipeHero from "../../components/recipe/RecipeHero.astro";
-import RecipeMeta from "../../components/recipe/RecipeMeta.astro";
-import IngredientChecklist from "../../components/recipe/IngredientChecklist.astro";
-import InstructionList from "../../components/recipe/InstructionList.astro";
-import RelatedRecipes from "../../components/recipe/RelatedRecipes.astro";
-import CookingMode from "../../components/recipe/CookingMode.astro";
 
+// Only recipe ids are known at build time (needed to generate one static route per
+// recipe) — no recipe content. The id itself is already visible in the URL, so
+// embedding it in the shell below doesn't expose anything new. See "Limitations" in
+// the design notes: static filenames still reveal that a recipe with this id exists,
+// even though its content does not render until the site is unlocked.
 export async function getStaticPaths() {
   const recipes = await getCollection("recipes");
   return recipes.map(recipe => ({
     params: { id: recipe.id.replace(/\.md$/, "") },
-    props: { recipe },
   }));
 }
 
-const { recipe } = Astro.props;
-const { data } = recipe;
-const recipeId = recipe.id.replace(/\.md$/, "");
-
-const { Content } = await render(recipe);
-
-const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-
-const allRecipes = await getCollection("recipes");
-const related = allRecipes
-  .filter(r => r.id !== recipe.id && r.data.category === data.category)
-  .slice(0, 3)
-  .map(r => ({
-    id: r.id.replace(/\.md$/, ""),
-    title: r.data.title,
-    description: r.data.description,
-    image: r.data.image,
-    category: r.data.category,
-    difficulty: r.data.difficulty,
-    prepTime: r.data.prepTime,
-    servings: r.data.servings,
-    href: `${base}recipes/${r.id.replace(/\.md$/, "")}`,
-  }));
+const { id } = Astro.params;
 ---
 
-<BaseLayout title={`${data.title} — Cookbook`}>
+<BaseLayout title="Recipe — Cookbook">
 
-  <div class="pb-8 pt-8">
-    <Container>
-      <RecipeHero
-        title={data.title}
-        description={data.description}
-        image={data.image}
-        href={`/recipes/${recipeId}`}
-        prepTime={data.prepTime}
-        cookTime={data.cookTime}
-        servings={data.servings}
-        category={data.category}
-      />
-    </Container>
-  </div>
+  <div id="recipe-root" data-recipe-id={id}>
 
-  <Container>
-    <div class="space-y-10 pb-24">
-
-      <RecipeMeta
-        prepTime={data.prepTime}
-        cookTime={data.cookTime}
-        servings={data.servings}
-        difficulty={data.difficulty}
-      />
-
-      <!-- Action bar -->
-      <div class="flex flex-wrap gap-3">
-        <button
-          id="detail-fav-btn"
-          data-recipe-id={recipeId}
-          class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]"
-        >
-          <span id="detail-heart">🤍</span>
-          <span id="detail-fav-label">Save to Favorites</span>
-        </button>
-
-        <button
-          id="detail-edit-btn"
-          class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]"
-        >
-          ✏️ Edit Recipe
-        </button>
-
-        <CookingMode title={data.title} instructions={data.instructions} />
-      </div>
-
-      <!-- Ingredients + Instructions -->
-      <div class="grid gap-12 lg:grid-cols-[1fr_2fr]">
-
-        <div>
-          <div class="lg:sticky lg:top-28">
-            <h2 class="mb-6 text-3xl">Ingredients</h2>
-            <IngredientChecklist ingredients={data.ingredients} />
-          </div>
-        </div>
-
-        <div>
-          <h2 class="mb-6 text-3xl">Instructions</h2>
-          <InstructionList instructions={data.instructions} />
-
-          <div class="prose mt-10 text-[var(--color-text-muted)]">
-            <Content />
-          </div>
-        </div>
-
-      </div>
-
-      <RelatedRecipes recipes={related} />
-
+    <!-- Not found -->
+    <div id="not-found" class="hidden py-32 text-center">
+      <p class="text-xl text-[var(--color-text-muted)]">Recipe not found.</p>
+      <a href={import.meta.env.BASE_URL.replace(/\/?$/, '/')} class="mt-4 inline-block text-[var(--color-primary)] underline">← Go home</a>
     </div>
-  </Container>
+
+    <!-- Recipe shell (populated by script once decrypted) -->
+    <div id="recipe-shell" class="hidden">
+
+      <div class="pb-8 pt-8">
+        <Container>
+          <a id="hero" href="#" class="group relative flex min-h-[540px] items-end overflow-hidden rounded-3xl"
+             style="background:linear-gradient(135deg,var(--color-primary) 0%,var(--color-accent) 100%)">
+            <img id="hero-img" alt="" class="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]" onerror="this.style.display='none'" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"></div>
+            <div class="relative z-10 max-w-2xl space-y-4 p-8 text-white md:p-12">
+              <div class="flex flex-wrap gap-2">
+                <span id="hero-category" class="rounded-full bg-white/20 px-3 py-1 text-sm backdrop-blur-sm"></span>
+              </div>
+              <h1 id="hero-title" class="text-5xl leading-tight md:text-6xl"></h1>
+              <p id="hero-desc" class="text-lg text-white/80"></p>
+              <div class="flex flex-wrap gap-6 text-sm text-white/70">
+                <span id="hero-prep"></span>
+                <span id="hero-cook"></span>
+                <span id="hero-servings"></span>
+              </div>
+            </div>
+          </a>
+        </Container>
+      </div>
+
+      <Container>
+        <div class="space-y-10 pb-24">
+
+          <!-- Meta bar -->
+          <div class="flex flex-wrap gap-px overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-border)]">
+            <div class="flex flex-1 flex-col items-center gap-1 bg-[var(--color-surface)] px-6 py-4 text-center">
+              <span class="text-xs uppercase tracking-widest text-[var(--color-text-muted)]">Prep Time</span>
+              <span id="meta-prep" class="text-lg font-semibold"></span>
+            </div>
+            <div class="flex flex-1 flex-col items-center gap-1 bg-[var(--color-surface)] px-6 py-4 text-center">
+              <span class="text-xs uppercase tracking-widest text-[var(--color-text-muted)]">Cook Time</span>
+              <span id="meta-cook" class="text-lg font-semibold"></span>
+            </div>
+            <div class="flex flex-1 flex-col items-center gap-1 bg-[var(--color-surface)] px-6 py-4 text-center">
+              <span class="text-xs uppercase tracking-widest text-[var(--color-text-muted)]">Servings</span>
+              <span id="meta-servings" class="text-lg font-semibold"></span>
+            </div>
+            <div class="flex flex-1 flex-col items-center gap-1 bg-[var(--color-surface)] px-6 py-4 text-center">
+              <span class="text-xs uppercase tracking-widest text-[var(--color-text-muted)]">Difficulty</span>
+              <span id="meta-difficulty" class="rounded-full px-3 py-0.5 text-sm font-medium"></span>
+            </div>
+          </div>
+
+          <!-- Action bar -->
+          <div class="flex flex-wrap gap-3">
+            <button id="fav-btn" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]">
+              <span id="fav-heart">🤍</span>
+              <span id="fav-label">Save to Favorites</span>
+            </button>
+            <button id="edit-btn" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]">
+              ✏️ Edit Recipe
+            </button>
+            <button id="cm-trigger" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm font-medium transition hover:bg-[var(--color-bg)] hover:shadow-md">
+              🍳 Cooking Mode
+            </button>
+          </div>
+
+          <!-- Ingredients + Instructions -->
+          <div class="grid gap-12 lg:grid-cols-[1fr_2fr]">
+            <div>
+              <div class="lg:sticky lg:top-28">
+                <h2 class="mb-6 text-3xl">Ingredients</h2>
+                <ul id="ingredient-list" class="space-y-3"></ul>
+              </div>
+            </div>
+            <div>
+              <h2 class="mb-6 text-3xl">Instructions</h2>
+              <ol id="instruction-list" class="space-y-8"></ol>
+              <div id="recipe-body" class="prose mt-10 text-[var(--color-text-muted)]"></div>
+            </div>
+          </div>
+
+          <!-- Related recipes -->
+          <section id="related-section" class="hidden space-y-6">
+            <h2 class="text-4xl">You Might Also Like</h2>
+            <div id="related-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
+          </section>
+
+        </div>
+      </Container>
+    </div>
+
+    <!-- Cooking Mode overlay -->
+    <div id="cm-overlay" class="fixed inset-0 z-[100] hidden flex-col bg-[var(--color-bg)]" style="padding:clamp(1.5rem,5vw,3rem)">
+      <div class="flex items-center justify-between">
+        <div>
+          <p id="cm-recipe" class="text-sm font-medium text-[var(--color-text-muted)]"></p>
+          <p id="cm-counter" class="text-xs text-[var(--color-text-muted)]"></p>
+        </div>
+        <button id="cm-exit" class="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm transition hover:bg-[var(--color-surface)]">✕ Exit</button>
+      </div>
+      <div class="flex flex-1 flex-col items-center justify-center gap-6 text-center">
+        <p id="cm-label" class="text-sm font-semibold uppercase tracking-widest text-[var(--color-primary)]"></p>
+        <p id="cm-text" class="max-w-2xl leading-relaxed" style="font-size:clamp(1.25rem,3vw,2rem)"></p>
+        <div id="cm-timer-wrap" class="hidden flex-col items-center gap-3">
+          <button id="cm-timer-btn" class="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-6 py-3 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)]">
+            ⏱ <span id="cm-timer-label"></span>
+          </button>
+          <span id="cm-timer-disp" class="hidden text-4xl font-semibold tabular-nums text-[var(--color-primary)]"></span>
+        </div>
+      </div>
+      <div class="flex justify-center gap-2 py-4" id="cm-dots"></div>
+      <div class="flex items-center justify-between">
+        <button id="cm-prev" class="rounded-full border border-[var(--color-border)] px-6 py-3 text-sm transition hover:bg-[var(--color-surface)] disabled:opacity-30">← Previous</button>
+        <button id="cm-next" class="rounded-full bg-[var(--color-primary)] px-6 py-3 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)]">Next →</button>
+      </div>
+    </div>
+
+  </div>
 
 </BaseLayout>
 
-<script define:vars={{ base, recipeId, recipeData: {
-  title: data.title,
-  description: data.description,
-  image: data.image ?? "",
-  category: data.category,
-  tags: data.tags ?? [],
-  prepTime: data.prepTime,
-  cookTime: data.cookTime,
-  servings: data.servings,
-  difficulty: data.difficulty,
-  ingredients: data.ingredients,
-  instructions: data.instructions,
-} }}>
-  // If the user has saved a local edit of this recipe, send them there instead
-  const _userRecipes = JSON.parse(localStorage.getItem("cookbook-user-recipes") ?? "[]");
-  if (_userRecipes.find((r) => r.id === recipeId)) {
-    window.location.replace(`${base}recipes/local?id=${encodeURIComponent(recipeId)}`);
+<script>
+  import { getData } from "../../scripts/site-auth";
+  import { getById as getLocalById } from "../../scripts/user-recipes.ts";
+  import { renderIngredients, renderInstructions, initCookingMode } from "../../scripts/recipe-render.ts";
+  import { mountCardsGeneric } from "../../scripts/user-recipes.ts";
+
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+  const root = document.getElementById("recipe-root")!;
+  const id = root.dataset.recipeId ?? "";
+
+  // If the user has saved a local edit of this recipe, send them there instead —
+  // same behavior as before.
+  if (id && getLocalById(id)) {
+    window.location.replace(`${base}recipes/local?id=${encodeURIComponent(id)}`);
+  } else {
+    getData().then(({ recipes }) => {
+      const recipe = recipes.find(r => r.id === id);
+      if (!recipe) {
+        document.getElementById("not-found")!.classList.remove("hidden");
+        return;
+      }
+
+      document.title = `${recipe.title} — Cookbook`;
+      document.getElementById("recipe-shell")!.classList.remove("hidden");
+
+      // Hero
+      const heroLink = document.getElementById("hero") as HTMLAnchorElement;
+      heroLink.href = `${base}recipes/${id}`;
+      const heroImg = document.getElementById("hero-img") as HTMLImageElement;
+      if (recipe.image) { heroImg.style.display = ""; heroImg.src = recipe.image; heroImg.alt = recipe.title; }
+      else heroImg.style.display = "none";
+      document.getElementById("hero-title")!.textContent    = recipe.title;
+      document.getElementById("hero-desc")!.textContent     = recipe.description;
+      document.getElementById("hero-category")!.textContent = recipe.category;
+      document.getElementById("hero-prep")!.textContent     = `⏱ Prep ${recipe.prepTime} min`;
+      document.getElementById("hero-cook")!.textContent     = `🔥 Cook ${recipe.cookTime} min`;
+      document.getElementById("hero-servings")!.textContent = `🍽 ${recipe.servings} servings`;
+
+      // Meta bar
+      document.getElementById("meta-prep")!.textContent     = `${recipe.prepTime} min`;
+      document.getElementById("meta-cook")!.textContent     = `${recipe.cookTime} min`;
+      document.getElementById("meta-servings")!.textContent = String(recipe.servings);
+      const diff = document.getElementById("meta-difficulty")!;
+      diff.textContent = recipe.difficulty;
+      diff.className += recipe.difficulty === "Easy"
+        ? " bg-green-100 text-green-700"
+        : recipe.difficulty === "Medium"
+        ? " bg-yellow-100 text-yellow-700"
+        : " bg-red-100 text-red-700";
+
+      // Ingredients / instructions
+      renderIngredients(document.getElementById("ingredient-list")!, recipe.ingredients);
+      renderInstructions(document.getElementById("instruction-list")!, recipe.instructions);
+
+      // Markdown body — basic paragraph rendering (recipes rarely use this field;
+      // no full markdown renderer is pulled in just for occasional prose notes).
+      const bodyEl = document.getElementById("recipe-body")!;
+      const paragraphs = recipe.body.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+      bodyEl.innerHTML = paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join("");
+
+      // Favorites
+      const FAV_KEY = "cookbook-favorites";
+      const favBtn   = document.getElementById("fav-btn")!;
+      const heart    = document.getElementById("fav-heart")!;
+      const favLabel = document.getElementById("fav-label")!;
+      function isFav() {
+        return (JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as string[]).includes(id);
+      }
+      function setFavUI(fav: boolean) {
+        heart.textContent    = fav ? "❤️" : "🤍";
+        favLabel.textContent = fav ? "Saved!" : "Save to Favorites";
+      }
+      setFavUI(isFav());
+      favBtn.addEventListener("click", () => {
+        const favs = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as string[];
+        const was  = favs.includes(id);
+        localStorage.setItem(FAV_KEY, JSON.stringify(was ? favs.filter(f => f !== id) : [...favs, id]));
+        setFavUI(!was);
+      });
+
+      // Edit — hands the recipe off to the manage form via sessionStorage, as before.
+      document.getElementById("edit-btn")!.addEventListener("click", () => {
+        sessionStorage.setItem("cookbook-import", JSON.stringify({ ...recipe, id }));
+        window.location.href = `${base}manage?import=1`;
+      });
+
+      // Cooking mode
+      initCookingMode({
+        trigger: document.getElementById("cm-trigger")!,
+        overlay: document.getElementById("cm-overlay")!,
+        exit: document.getElementById("cm-exit")!,
+        recipeTitle: document.getElementById("cm-recipe")!,
+        counter: document.getElementById("cm-counter")!,
+        label: document.getElementById("cm-label")!,
+        text: document.getElementById("cm-text")!,
+        prev: document.getElementById("cm-prev") as HTMLButtonElement,
+        next: document.getElementById("cm-next")!,
+        dots: document.getElementById("cm-dots")!,
+        timerWrap: document.getElementById("cm-timer-wrap")!,
+        timerBtn: document.getElementById("cm-timer-btn")!,
+        timerLabel: document.getElementById("cm-timer-label")!,
+        timerDisp: document.getElementById("cm-timer-disp")!,
+      }, recipe.title, recipe.instructions);
+
+      // Related recipes — same category, excluding this one.
+      const related = recipes
+        .filter(r => r.id !== id && r.category === recipe.category)
+        .slice(0, 3);
+      if (related.length > 0) {
+        document.getElementById("related-section")!.classList.remove("hidden");
+        mountCardsGeneric(document.getElementById("related-grid") as HTMLElement, related, r => `${base}recipes/${r.id}`);
+      }
+    });
   }
 
-  const FAV_KEY = "cookbook-favorites";
-  const favBtn   = document.getElementById("detail-fav-btn");
-  const heart    = document.getElementById("detail-heart");
-  const favLabel = document.getElementById("detail-fav-label");
-
-  document.getElementById("detail-edit-btn")?.addEventListener("click", () => {
-    sessionStorage.setItem("cookbook-import", JSON.stringify({ ...recipeData, id: recipeId }));
-    window.location.href = `${base}manage?import=1`;
-  });
-
-  function isFav() {
-    return JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]").includes(recipeId);
+  function escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-  function setFavUI(fav) {
-    if (heart)    heart.textContent    = fav ? "❤️" : "🤍";
-    if (favLabel) favLabel.textContent = fav ? "Saved!" : "Save to Favorites";
-  }
-  setFavUI(isFav());
-  favBtn?.addEventListener("click", () => {
-    const favs    = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
-    const wasFav  = favs.includes(recipeId);
-    localStorage.setItem(FAV_KEY, JSON.stringify(wasFav ? favs.filter(f => f !== recipeId) : [...favs, recipeId]));
-    setFavUI(!wasFav);
-  });
 </script>

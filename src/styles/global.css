@@ -41,3 +41,10 @@ a {
 button {
     font: inherit;
 }
+
+/* Checked state for dynamically-rendered ingredient checklists (recipe detail
+   pages build their list at runtime, so this can't be a component-scoped style). */
+.ing-check.checked {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}

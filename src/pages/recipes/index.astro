@@ -1,34 +1,6 @@
 ---
-import { getCollection } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Container from "../../components/layout/Container.astro";
-import Section from "../../components/ui/Section.astro";
-import RecipeGrid from "../../components/recipe/RecipeGrid.astro";
-import Badge from "../../components/ui/Badge.astro";
-
-const allRecipes = await getCollection("recipes");
-
-const categories = [...new Set(allRecipes.map(r => r.data.category))].sort();
-
-const activeCategory = Astro.url.searchParams.get("category") ?? "All";
-
-const filtered = activeCategory === "All"
-  ? allRecipes
-  : allRecipes.filter(r => r.data.category === activeCategory);
-
-const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-
-const recipes = filtered.map(r => ({
-  id: r.id.replace(/\.md$/, ""),
-  title: r.data.title,
-  description: r.data.description,
-  image: r.data.image,
-  category: r.data.category,
-  difficulty: r.data.difficulty,
-  prepTime: r.data.prepTime,
-  servings: r.data.servings,
-  href: `${base}recipes/${r.id.replace(/\.md$/, "")}`,
-}));
 ---
 
 <BaseLayout title="Recipes — Cookbook">
@@ -38,9 +10,7 @@ const recipes = filtered.map(r => ({
     <Container>
       <div class="space-y-2">
         <h1 class="text-5xl">Recipes</h1>
-        <p class="text-[var(--color-text-muted)]">
-          {allRecipes.length} {allRecipes.length === 1 ? "recipe" : "recipes"} in your collection
-        </p>
+        <p id="recipe-count" class="text-[var(--color-text-muted)]"></p>
       </div>
     </Container>
   </div>
@@ -48,30 +18,16 @@ const recipes = filtered.map(r => ({
   <Container>
     <div class="space-y-10 pb-24">
 
-      <!-- Category filter -->
-      <div class="flex flex-wrap gap-2">
-        {["All", ...categories].map(cat => (
-          <a
-            href={cat === "All" ? `${base}recipes` : `${base}recipes?category=${encodeURIComponent(cat)}`}
-            class={`rounded-full px-4 py-2 text-sm transition ${
-              activeCategory === cat
-                ? "bg-[var(--color-primary)] text-white"
-                : "border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-bg)]"
-            }`}
-          >
-            {cat}
-          </a>
-        ))}
-      </div>
+      <!-- Category filter — populated by script; category names are recipe-derived
+           data, so nothing renders here until the site is unlocked. -->
+      <div id="category-filter" class="flex flex-wrap gap-2"></div>
 
-      <!-- Recipe grid -->
-      <Section title={activeCategory === "All" ? "All Recipes" : activeCategory}>
-        {recipes.length > 0
-          ? <RecipeGrid recipes={recipes} />
-          : <p class="text-[var(--color-text-muted)]">No recipes in this category yet.</p>
-        }
-        <div id="user-recipe-grid" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-category={activeCategory}></div>
-      </Section>
+      <section class="space-y-6">
+        <h2 id="section-title" class="text-4xl"></h2>
+        <p id="empty-msg" class="hidden text-[var(--color-text-muted)]">No recipes in this category yet.</p>
+        <div id="recipe-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
+        <div id="user-recipe-grid" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
+      </section>
 
     </div>
   </Container>
@@ -79,19 +35,57 @@ const recipes = filtered.map(r => ({
 </BaseLayout>
 
 <script>
-  import { getAll, mountCards } from "../../scripts/user-recipes.ts";
-  const grid = document.getElementById("user-recipe-grid") as HTMLElement;
-  if (grid) {
-    const cat = grid.dataset.category ?? "All";
-    const all = getAll();
+  import { getData } from "../../scripts/site-auth";
+  import { getAll, mountCards, mountCardsGeneric } from "../../scripts/user-recipes.ts";
 
-    // Hide static cards that the user has locally overridden
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+  const activeCategory = new URLSearchParams(window.location.search).get("category") ?? "All";
+
+  getData().then(({ recipes: allRecipes }) => {
+    document.getElementById("recipe-count")!.textContent =
+      `${allRecipes.length} ${allRecipes.length === 1 ? "recipe" : "recipes"} in your collection`;
+
+    // ── Category filter pills ─────────────────────────────────────────────
+    const categories = [...new Set(allRecipes.map(r => r.category))].sort();
+    const filterWrap = document.getElementById("category-filter")!;
+    ["All", ...categories].forEach(cat => {
+      const a = document.createElement("a");
+      a.href = cat === "All" ? `${base}recipes` : `${base}recipes?category=${encodeURIComponent(cat)}`;
+      a.textContent = cat;
+      a.className = `rounded-full px-4 py-2 text-sm transition ${
+        activeCategory === cat
+          ? "bg-[var(--color-primary)] text-white"
+          : "border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-bg)]"
+      }`;
+      filterWrap.appendChild(a);
+    });
+
+    // ── Filtered recipe grid ────────────────────────────────────────────────
+    document.getElementById("section-title")!.textContent =
+      activeCategory === "All" ? "All Recipes" : activeCategory;
+
+    const filtered = activeCategory === "All"
+      ? allRecipes
+      : allRecipes.filter(r => r.category === activeCategory);
+
+    const recipeGrid = document.getElementById("recipe-grid") as HTMLElement;
+    if (filtered.length === 0) {
+      document.getElementById("empty-msg")!.classList.remove("hidden");
+    } else {
+      mountCardsGeneric(recipeGrid, filtered, r => `${base}recipes/${r.id}`);
+      Array.from(recipeGrid.children).forEach((el, i) => {
+        (el as HTMLElement).dataset.staticRecipeId = filtered[i]?.id ?? "";
+      });
+    }
+
+    // ── Local (user-added) recipes ─────────────────────────────────────────
+    const userGrid = document.getElementById("user-recipe-grid") as HTMLElement;
+    const all = getAll();
     all.forEach(ur => {
       const el = document.querySelector<HTMLElement>(`[data-static-recipe-id="${ur.id}"]`);
       if (el) el.style.display = "none";
     });
-
-    const filtered = cat === "All" ? all : all.filter(r => r.category === cat);
-    mountCards(grid, filtered);
-  }
+    const localFiltered = activeCategory === "All" ? all : all.filter(r => r.category === activeCategory);
+    mountCards(userGrid, localFiltered);
+  });
 </script>

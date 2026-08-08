@@ -18,6 +18,20 @@ export interface UserRecipe {
   instructions: string[];
 }
 
+/** The subset of fields a recipe card needs — satisfied by both UserRecipe and the
+ *  decrypted static Recipe type (src/scripts/site-auth.ts), so cards render identically
+ *  either way. */
+export interface CardData {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  category: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  prepTime: number;
+  servings: number;
+}
+
 export function getAll(): UserRecipe[] {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"); }
   catch { return []; }
@@ -48,18 +62,17 @@ export function localHref(id: string): string {
   return `${base}recipes/local?id=${id}`;
 }
 
-function esc(s: string): string {
+export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function isFav(id: string): boolean {
+export function isFav(id: string): boolean {
   return (JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]") as string[]).includes(id);
 }
 
-/** Returns an HTML string for a recipe card matching the RecipeCard component's visual design. */
-export function cardHTML(recipe: UserRecipe): string {
-  const href = localHref(recipe.id);
-  const fav  = isFav(recipe.id);
+/** Returns an HTML string for a recipe card (used across all recipe grids/listings). */
+export function cardHTML(recipe: CardData, href: string): string {
+  const fav = isFav(recipe.id);
   const diffColor = recipe.difficulty === "Easy"
     ? "bg-green-100 text-green-700"
     : recipe.difficulty === "Medium"
@@ -101,18 +114,7 @@ export function cardHTML(recipe: UserRecipe): string {
 </div>`;
 }
 
-/** Appends user recipe cards to `container` and wires up heart buttons. */
-export function mountCards(container: HTMLElement, recipes?: UserRecipe[]) {
-  const list = recipes ?? getAll();
-  if (list.length === 0) return;
-
-  list.forEach(recipe => {
-    const wrap = document.createElement("div");
-    wrap.innerHTML = cardHTML(recipe).trim();
-    const card = wrap.firstElementChild!;
-    container.appendChild(card);
-  });
-
+function wireFavoriteButtons(container: HTMLElement) {
   container.querySelectorAll<HTMLButtonElement>(".favorite-btn").forEach(btn => {
     const id = btn.dataset.recipeId ?? "";
     btn.addEventListener("click", () => {
@@ -123,4 +125,25 @@ export function mountCards(container: HTMLElement, recipes?: UserRecipe[]) {
       btn.querySelector(".heart-icon")!.textContent = isFaved ? "🤍" : "❤️";
     });
   });
+}
+
+/** Appends cards for any card-shaped recipe list into `container`, given an href-builder. */
+export function mountCardsGeneric<T extends CardData>(
+  container: HTMLElement,
+  recipes: T[],
+  hrefFor: (recipe: T) => string,
+) {
+  recipes.forEach(recipe => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = cardHTML(recipe, hrefFor(recipe)).trim();
+    container.appendChild(wrap.firstElementChild!);
+  });
+  wireFavoriteButtons(container);
+}
+
+/** Appends user (local) recipe cards to `container` and wires up heart buttons. */
+export function mountCards(container: HTMLElement, recipes?: UserRecipe[]) {
+  const list = recipes ?? getAll();
+  if (list.length === 0) return;
+  mountCardsGeneric(container, list, r => localHref(r.id));
 }

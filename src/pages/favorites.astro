@@ -1,20 +1,6 @@
 ---
-import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Container from "../components/layout/Container.astro";
-import RecipeCard from "../components/recipe/RecipeCard.astro";
-
-const allRecipes = await getCollection("recipes");
-const recipes = allRecipes.map(r => ({
-  id: r.id.replace(/\.md$/, ""),
-  title: r.data.title,
-  description: r.data.description,
-  image: r.data.image,
-  category: r.data.category,
-  difficulty: r.data.difficulty,
-  prepTime: r.data.prepTime,
-  servings: r.data.servings,
-}));
 ---
 
 <BaseLayout title="Favorites — Cookbook">
@@ -26,17 +12,9 @@ const recipes = allRecipes.map(r => ({
         <p class="mt-2 text-[var(--color-text-muted)]">Recipes you've saved</p>
       </div>
 
-      <!-- Static recipes: hidden at build, revealed client-side if favorited -->
-      <div id="fav-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {recipes.map(r => (
-          <div class="fav-wrapper hidden" data-recipe-id={r.id}>
-            <RecipeCard {...r} href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}recipes/${r.id}`} />
-          </div>
-        ))}
-        <!-- User recipes injected here by script -->
-      </div>
+      <div id="fav-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
 
-      <p id="fav-empty" class="text-[var(--color-text-muted)]">
+      <p id="fav-empty" class="hidden text-[var(--color-text-muted)]">
         No favorites yet. Tap ❤️ on any recipe to save it here.
       </p>
 
@@ -45,30 +23,31 @@ const recipes = allRecipes.map(r => ({
 </BaseLayout>
 
 <script>
-  import { getAll, mountCards } from "../scripts/user-recipes.ts";
+  import { getData } from "../scripts/site-auth";
+  import { getAll, mountCardsGeneric } from "../scripts/user-recipes.ts";
 
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
   const FAV_KEY = "cookbook-favorites";
   const favs: string[] = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
 
-  let shown = 0;
+  getData().then(({ recipes }) => {
+    const grid = document.getElementById("fav-grid") as HTMLElement;
+    let shown = 0;
 
-  // Reveal static (Content Collection) recipes
-  document.querySelectorAll<HTMLDivElement>(".fav-wrapper").forEach(wrapper => {
-    if (favs.includes(wrapper.dataset.recipeId ?? "")) {
-      wrapper.classList.remove("hidden");
-      shown++;
+    const staticFavs = recipes.filter(r => favs.includes(r.id));
+    if (staticFavs.length > 0) {
+      mountCardsGeneric(grid, staticFavs, r => `${base}recipes/${r.id}`);
+      shown += staticFavs.length;
+    }
+
+    const userFavs = getAll().filter(r => favs.includes(r.id));
+    if (userFavs.length > 0) {
+      mountCardsGeneric(grid, userFavs, r => `${base}recipes/local?id=${r.id}`);
+      shown += userFavs.length;
+    }
+
+    if (shown === 0) {
+      document.getElementById("fav-empty")!.classList.remove("hidden");
     }
   });
-
-  // Mount favorited user recipes
-  const grid = document.getElementById("fav-grid")!;
-  const userFavs = getAll().filter(r => favs.includes(r.id));
-  if (userFavs.length > 0) {
-    mountCards(grid, userFavs);
-    shown += userFavs.length;
-  }
-
-  if (shown > 0) {
-    document.getElementById("fav-empty")?.classList.add("hidden");
-  }
 </script>

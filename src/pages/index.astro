@@ -1,56 +1,8 @@
 ---
-import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Container from "../components/layout/Container.astro";
 import Section from "../components/ui/Section.astro";
 import SearchBar from "../components/ui/SearchBar.astro";
-import RecipeHero from "../components/recipe/RecipeHero.astro";
-import RecipeGrid from "../components/recipe/RecipeGrid.astro";
-import CategoryGrid from "../components/category/CategoryGrid.astro";
-
-const allRecipes = await getCollection("recipes");
-
-const featured = allRecipes.find(r => r.data.featured) ?? allRecipes[0];
-
-const CATEGORY_ICONS: Record<string, string> = {
-  Baking: "🥐",
-  Breakfast: "☀️",
-  Lunch: "🥗",
-  Dinner: "🍽️",
-  Dessert: "🍰",
-  Snacks: "🍿",
-  Drinks: "🥤",
-  Soup: "🍲",
-  Pasta: "🍝",
-  Salads: "🥗",
-};
-
-const categoryMap = new Map<string, number>();
-for (const r of allRecipes) {
-  const cat = r.data.category;
-  categoryMap.set(cat, (categoryMap.get(cat) ?? 0) + 1);
-}
-
-const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
-
-const categories = [...categoryMap.entries()].map(([name, count]) => ({
-  name,
-  count,
-  href: `${base}recipes?category=${encodeURIComponent(name)}`,
-  icon: CATEGORY_ICONS[name] ?? "🍴",
-}));
-
-const recipes = allRecipes.map(r => ({
-  id: r.id.replace(/\.md$/, ""),
-  title: r.data.title,
-  description: r.data.description,
-  image: r.data.image,
-  category: r.data.category,
-  difficulty: r.data.difficulty,
-  prepTime: r.data.prepTime,
-  servings: r.data.servings,
-  href: `${base}recipes/${r.id.replace(/\.md$/, "")}`,
-}));
 ---
 
 <BaseLayout title="My Cookbook">
@@ -66,38 +18,35 @@ const recipes = allRecipes.map(r => ({
     </Container>
   </div>
 
-  <!-- Main content -->
+  <!-- Main content — filled in by script once the site is unlocked. Nothing
+       recipe-related (titles, categories, counts, anything) is server-rendered,
+       so there's nothing to read from the page source before that. -->
   <Container>
     <div class="space-y-16 pb-24">
 
-      {featured && (
-        <Section title="Featured Recipe">
-          <RecipeHero
-            title={featured.data.title}
-            description={featured.data.description}
-            image={featured.data.image}
-            href={`${base}recipes/${featured.id.replace(/\.md$/, "")}`}
-            prepTime={featured.data.prepTime}
-            cookTime={featured.data.cookTime}
-            servings={featured.data.servings}
-            category={featured.data.category}
-          />
-        </Section>
-      )}
+      <section id="featured-section" class="hidden space-y-6">
+        <div>
+          <h2 class="text-4xl">Featured Recipe</h2>
+        </div>
+        <div id="featured-hero"></div>
+      </section>
 
-      {categories.length > 0 && (
-        <Section title="Browse by Category" subtitle="Find recipes by type">
-          <CategoryGrid categories={categories} />
-        </Section>
-      )}
+      <section id="categories-section" class="hidden space-y-6">
+        <div>
+          <h2 class="text-4xl">Browse by Category</h2>
+          <p class="mt-2 text-[var(--color-text-muted)]">Find recipes by type</p>
+        </div>
+        <div id="category-grid" class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"></div>
+      </section>
 
-      <Section
-        title="All Recipes"
-        subtitle={`${recipes.length} ${recipes.length === 1 ? "recipe" : "recipes"} in your collection`}
-      >
-        <RecipeGrid recipes={recipes} />
+      <section class="space-y-6">
+        <div>
+          <h2 class="text-4xl">All Recipes</h2>
+          <p id="recipe-count" class="mt-2 text-[var(--color-text-muted)]"></p>
+        </div>
+        <div id="recipe-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
         <div id="user-recipe-grid" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
-      </Section>
+      </section>
 
     </div>
   </Container>
@@ -105,17 +54,100 @@ const recipes = allRecipes.map(r => ({
 </BaseLayout>
 
 <script>
-  import { getAll, mountCards } from "../scripts/user-recipes.ts";
-  const grid = document.getElementById("user-recipe-grid");
-  if (grid) {
-    const all = getAll();
+  import { getData } from "../scripts/site-auth";
+  import { getAll, mountCards, mountCardsGeneric } from "../scripts/user-recipes.ts";
 
-    // Hide static cards that the user has locally overridden
+  const CATEGORY_ICONS: Record<string, string> = {
+    Baking: "🥐",
+    Breakfast: "☀️",
+    Lunch: "🥗",
+    Dinner: "🍽️",
+    Dessert: "🍰",
+    Snacks: "🍿",
+    Drinks: "🥤",
+    Soup: "🍲",
+    Pasta: "🍝",
+    Salads: "🥗",
+  };
+
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+
+  getData().then(({ recipes }) => {
+    // ── Featured recipe ────────────────────────────────────────────────────
+    const featured = recipes.find(r => r.featured) ?? recipes[0];
+    if (featured) {
+      document.getElementById("featured-section")!.classList.remove("hidden");
+      document.getElementById("featured-hero")!.innerHTML = `
+        <a href="${base}recipes/${featured.id}"
+           class="group relative flex min-h-[540px] items-end overflow-hidden rounded-3xl"
+           style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)">
+          <img src="${featured.image}" alt="${featured.title}"
+               class="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+               onerror="this.style.display='none'" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"></div>
+          <div class="relative z-10 max-w-2xl space-y-4 p-8 text-white md:p-12">
+            <div class="flex flex-wrap gap-2">
+              <span class="rounded-full bg-white/20 px-3 py-1 text-sm backdrop-blur-sm">${featured.category}</span>
+              <span class="rounded-full bg-[var(--color-accent)] px-3 py-1 text-sm font-medium text-[var(--color-text)]">Featured</span>
+            </div>
+            <h2 class="text-5xl leading-tight md:text-6xl">${featured.title}</h2>
+            <p class="text-lg text-white/80">${featured.description}</p>
+            <div class="flex flex-wrap gap-6 text-sm text-white/70">
+              <span>⏱ Prep ${featured.prepTime} min</span>
+              <span>🔥 Cook ${featured.cookTime} min</span>
+              <span>🍽 ${featured.servings} servings</span>
+            </div>
+            <div class="pt-2">
+              <span class="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-medium text-[var(--color-text)] transition group-hover:bg-[var(--color-bg)]">
+                Cook this recipe →
+              </span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    // ── Categories ──────────────────────────────────────────────────────────
+    const categoryMap = new Map<string, number>();
+    for (const r of recipes) categoryMap.set(r.category, (categoryMap.get(r.category) ?? 0) + 1);
+
+    if (categoryMap.size > 0) {
+      document.getElementById("categories-section")!.classList.remove("hidden");
+      const grid = document.getElementById("category-grid")!;
+      [...categoryMap.entries()].forEach(([name, count]) => {
+        const a = document.createElement("a");
+        a.href = `${base}recipes?category=${encodeURIComponent(name)}`;
+        a.className = "group flex flex-col items-center gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-md";
+        a.innerHTML = `
+          <span class="text-4xl">${CATEGORY_ICONS[name] ?? "🍴"}</span>
+          <div>
+            <p class="font-semibold text-[var(--color-text)]">${name}</p>
+            <p class="text-sm text-[var(--color-text-muted)]">${count} ${count === 1 ? "recipe" : "recipes"}</p>
+          </div>
+        `;
+        grid.appendChild(a);
+      });
+    }
+
+    // ── Recipe grid ─────────────────────────────────────────────────────────
+    document.getElementById("recipe-count")!.textContent =
+      `${recipes.length} ${recipes.length === 1 ? "recipe" : "recipes"} in your collection`;
+
+    const recipeGrid = document.getElementById("recipe-grid") as HTMLElement;
+    mountCardsGeneric(recipeGrid, recipes, r => `${base}recipes/${r.id}`);
+    // Tag each card with its recipe id so locally-edited recipes can hide the
+    // static version, same as before.
+    Array.from(recipeGrid.children).forEach((el, i) => {
+      (el as HTMLElement).dataset.staticRecipeId = recipes[i]?.id ?? "";
+    });
+
+    // ── Local (user-added) recipes ─────────────────────────────────────────
+    const userGrid = document.getElementById("user-recipe-grid") as HTMLElement;
+    const all = getAll();
     all.forEach(ur => {
       const el = document.querySelector<HTMLElement>(`[data-static-recipe-id="${ur.id}"]`);
       if (el) el.style.display = "none";
     });
-
-    mountCards(grid, all);
-  }
+    mountCards(userGrid, all);
+  });
 </script>

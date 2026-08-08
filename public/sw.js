@@ -1,5 +1,5 @@
-const CACHE = "cookbook-v2";
-const PRECACHE = ["/", "/recipes", "/favorites", "/search-index.json"];
+const CACHE = "cookbook-v3";
+const PRECACHE = ["/", "/recipes", "/favorites", "/data.enc.json"];
 
 self.addEventListener("install", e =>
   e.waitUntil(

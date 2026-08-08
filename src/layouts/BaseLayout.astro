@@ -9,7 +9,6 @@ interface Props {
 }
 
 const { title = "Cookbook" } = Astro.props;
-const _sitePass = import.meta.env.PUBLIC_MANAGE_PASSWORD ?? "";
 ---
 
 <html lang="en">
@@ -24,9 +23,6 @@ const _sitePass = import.meta.env.PUBLIC_MANAGE_PASSWORD ?? "";
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Cookbook" />
-
-<!-- Password baked in at build time — passed to the inline gate script below -->
-<meta name="site-auth-pass" content={_sitePass} />
 
 <link rel="manifest" href="/manifest.json" />
 <link rel="apple-touch-icon" href="/favicon.svg" />
@@ -82,49 +78,52 @@ const _sitePass = import.meta.env.PUBLIC_MANAGE_PASSWORD ?? "";
 
 </div>
 
-<!-- Auth gate script — runs synchronously at end of body, before any async scripts -->
-<script is:inline>
-(function () {
-  var PASS = document.querySelector('meta[name="site-auth-pass"]')?.getAttribute("content") ?? "";
-  var KEY  = "cookbook-site-auth";
-  var gate    = document.getElementById("site-gate");
-  var content = document.getElementById("site-content");
+<!-- Auth gate script — decrypts data.enc.json; a successful decrypt IS the auth check.
+     The password itself never ships to the browser (contrast the old meta-tag gate). -->
+<script>
+  import { tryCachedUnlock, unlock } from "../scripts/site-auth";
 
-  var authed = !PASS || localStorage.getItem(KEY) === "true";
+  const gate    = document.getElementById("site-gate")!;
+  const content = document.getElementById("site-content")!;
+  const input   = document.getElementById("gate-input") as HTMLInputElement;
+  const error   = document.getElementById("gate-error")!;
+  const btn     = document.getElementById("gate-submit") as HTMLButtonElement;
 
-  if (authed) {
-    if (gate)    gate.style.display = "none";
-    if (content) content.removeAttribute("style");
-  } else {
-    if (gate) gate.style.display = "flex";
+  function reveal() {
+    gate.style.display = "none";
+    content.removeAttribute("style");
+    document.documentElement.style.visibility = "";
   }
 
-  // Page is ready — reveal it now that display states are set
-  document.documentElement.style.visibility = "";
+  function showGate() {
+    gate.style.display = "flex";
+    document.documentElement.style.visibility = "";
+    setTimeout(() => input?.focus(), 50);
+  }
 
-  if (!authed) {
-    var input = document.getElementById("gate-input");
-    var error = document.getElementById("gate-error");
-    if (input) setTimeout(function () { input.focus(); }, 50);
-
-    function tryUnlock() {
-      if (input && input.value === PASS) {
-        localStorage.setItem(KEY, "true");
-        if (gate)    gate.style.display = "none";
-        if (content) content.removeAttribute("style");
-      } else {
-        if (error) error.style.display = "block";
-        if (input) { input.value = ""; input.focus(); }
-      }
+  async function tryUnlock() {
+    btn.disabled = true;
+    const ok = await unlock(input.value);
+    btn.disabled = false;
+    if (ok) {
+      reveal();
+    } else {
+      error.style.display = "block";
+      input.value = "";
+      input.focus();
     }
-
-    var btn = document.getElementById("gate-submit");
-    if (btn) btn.addEventListener("click", tryUnlock);
-    if (input) input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") tryUnlock();
-    });
   }
-})();
+
+  btn.addEventListener("click", tryUnlock);
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") tryUnlock();
+  });
+
+  (async () => {
+    if (await tryCachedUnlock()) { reveal(); return; }
+    if (await unlock("")) { reveal(); return; } // no site password configured (local dev)
+    showGate();
+  })();
 </script>
 
 <script>
