@@ -1,0 +1,24 @@
+---
+interface Props{
+color?:"green"|"yellow"|"red"|"brown";
+}
+
+const{
+color="brown"
+}=Astro.props;
+
+const colors={
+green:"bg-green-100 text-green-700",
+yellow:"bg-yellow-100 text-yellow-700",
+red:"bg-red-100 text-red-700",
+brown:"bg-orange-100 text-orange-700"
+}
+---
+
+<span
+class={`rounded-full px-3 py-1 text-sm ${colors[color]}`}
+>
+
+<slot/>
+
+</span>

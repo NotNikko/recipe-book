@@ -1,0 +1,17 @@
+---
+interface Props{
+placeholder?:string;
+}
+
+const{
+placeholder=""
+}=Astro.props;
+---
+
+<input
+
+placeholder={placeholder}
+
+class="w-full rounded-full border border-[var(--color-border)] bg-white px-6 py-4 outline-none transition focus:border-[var(--color-primary)]"
+
+/>

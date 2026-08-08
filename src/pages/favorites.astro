@@ -1,0 +1,74 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Container from "../components/layout/Container.astro";
+import RecipeCard from "../components/recipe/RecipeCard.astro";
+
+const allRecipes = await getCollection("recipes");
+const recipes = allRecipes.map(r => ({
+  id: r.id.replace(/\.md$/, ""),
+  title: r.data.title,
+  description: r.data.description,
+  image: r.data.image,
+  category: r.data.category,
+  difficulty: r.data.difficulty,
+  prepTime: r.data.prepTime,
+  servings: r.data.servings,
+}));
+---
+
+<BaseLayout title="Favorites — Cookbook">
+  <Container>
+    <div class="space-y-10 py-16 pb-24">
+
+      <div>
+        <h1 class="text-5xl">Favorites</h1>
+        <p class="mt-2 text-[var(--color-text-muted)]">Recipes you've saved</p>
+      </div>
+
+      <!-- Static recipes: hidden at build, revealed client-side if favorited -->
+      <div id="fav-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {recipes.map(r => (
+          <div class="fav-wrapper hidden" data-recipe-id={r.id}>
+            <RecipeCard {...r} href={`${import.meta.env.BASE_URL}recipes/${r.id}`} />
+          </div>
+        ))}
+        <!-- User recipes injected here by script -->
+      </div>
+
+      <p id="fav-empty" class="text-[var(--color-text-muted)]">
+        No favorites yet. Tap ❤️ on any recipe to save it here.
+      </p>
+
+    </div>
+  </Container>
+</BaseLayout>
+
+<script>
+  import { getAll, mountCards } from "../scripts/user-recipes.ts";
+
+  const FAV_KEY = "cookbook-favorites";
+  const favs: string[] = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
+
+  let shown = 0;
+
+  // Reveal static (Content Collection) recipes
+  document.querySelectorAll<HTMLDivElement>(".fav-wrapper").forEach(wrapper => {
+    if (favs.includes(wrapper.dataset.recipeId ?? "")) {
+      wrapper.classList.remove("hidden");
+      shown++;
+    }
+  });
+
+  // Mount favorited user recipes
+  const grid = document.getElementById("fav-grid")!;
+  const userFavs = getAll().filter(r => favs.includes(r.id));
+  if (userFavs.length > 0) {
+    mountCards(grid, userFavs);
+    shown += userFavs.length;
+  }
+
+  if (shown > 0) {
+    document.getElementById("fav-empty")?.classList.add("hidden");
+  }
+</script>

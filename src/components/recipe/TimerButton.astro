@@ -1,0 +1,58 @@
+---
+interface Props {
+  minutes: number;
+}
+const { minutes } = Astro.props;
+---
+
+<div class="timer-widget inline-flex flex-col items-center gap-2">
+  <button
+    class="timer-start inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2 text-sm transition hover:bg-[var(--color-bg)]"
+    data-minutes={minutes}
+  >
+    ⏱ {minutes} min timer
+  </button>
+  <span class="timer-display hidden text-2xl font-semibold tabular-nums text-[var(--color-primary)]"></span>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLDivElement>(".timer-widget").forEach(widget => {
+    const btn = widget.querySelector<HTMLButtonElement>(".timer-start")!;
+    const display = widget.querySelector<HTMLSpanElement>(".timer-display")!;
+    const minutes = parseInt(btn.dataset.minutes ?? "0");
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let running = false;
+
+    btn.addEventListener("click", () => {
+      if (running) {
+        if (interval) clearInterval(interval);
+        interval = null;
+        running = false;
+        display.classList.add("hidden");
+        btn.textContent = `⏱ ${minutes} min timer`;
+        return;
+      }
+
+      let remaining = minutes * 60;
+      running = true;
+      display.classList.remove("hidden");
+      btn.textContent = "✕ Cancel";
+
+      const tick = () => {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        display.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+        if (remaining <= 0) {
+          clearInterval(interval!);
+          display.textContent = "Done! 🎉";
+          btn.textContent = `⏱ ${minutes} min timer`;
+          running = false;
+        }
+        remaining--;
+      };
+      tick();
+      interval = setInterval(tick, 1000);
+    });
+  });
+</script>

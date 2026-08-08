@@ -1,0 +1,52 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  image: string;
+  href: string;
+  prepTime: number;
+  cookTime: number;
+  servings: number;
+  category: string;
+}
+
+const { title, description, image, href, prepTime, cookTime, servings, category } = Astro.props;
+---
+
+<a
+  href={href}
+  class="group relative flex min-h-[540px] items-end overflow-hidden rounded-3xl"
+  style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)"
+>
+  <img
+    src={image}
+    alt={title}
+    class="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+    onerror="this.style.display='none'"
+  />
+
+  <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"></div>
+
+  <div class="relative z-10 max-w-2xl space-y-4 p-8 text-white md:p-12">
+    <div class="flex flex-wrap gap-2">
+      <span class="rounded-full bg-white/20 px-3 py-1 text-sm backdrop-blur-sm">{category}</span>
+      <span class="rounded-full bg-[var(--color-accent)] px-3 py-1 text-sm font-medium text-[var(--color-text)]">Featured</span>
+    </div>
+
+    <h2 class="text-5xl leading-tight md:text-6xl">{title}</h2>
+
+    <p class="text-lg text-white/80">{description}</p>
+
+    <div class="flex flex-wrap gap-6 text-sm text-white/70">
+      <span>⏱ Prep {prepTime} min</span>
+      <span>🔥 Cook {cookTime} min</span>
+      <span>🍽 {servings} servings</span>
+    </div>
+
+    <div class="pt-2">
+      <span class="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-medium text-[var(--color-text)] transition group-hover:bg-[var(--color-bg)]">
+        Cook this recipe →
+      </span>
+    </div>
+  </div>
+</a>

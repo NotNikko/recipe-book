@@ -1,0 +1,162 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Container from "../../components/layout/Container.astro";
+import RecipeHero from "../../components/recipe/RecipeHero.astro";
+import RecipeMeta from "../../components/recipe/RecipeMeta.astro";
+import IngredientChecklist from "../../components/recipe/IngredientChecklist.astro";
+import InstructionList from "../../components/recipe/InstructionList.astro";
+import RelatedRecipes from "../../components/recipe/RelatedRecipes.astro";
+import CookingMode from "../../components/recipe/CookingMode.astro";
+
+export async function getStaticPaths() {
+  const recipes = await getCollection("recipes");
+  return recipes.map(recipe => ({
+    params: { id: recipe.id.replace(/\.md$/, "") },
+    props: { recipe },
+  }));
+}
+
+const { recipe } = Astro.props;
+const { data } = recipe;
+const recipeId = recipe.id.replace(/\.md$/, "");
+
+const { Content } = await render(recipe);
+
+const allRecipes = await getCollection("recipes");
+const related = allRecipes
+  .filter(r => r.id !== recipe.id && r.data.category === data.category)
+  .slice(0, 3)
+  .map(r => ({
+    id: r.id.replace(/\.md$/, ""),
+    title: r.data.title,
+    description: r.data.description,
+    image: r.data.image,
+    category: r.data.category,
+    difficulty: r.data.difficulty,
+    prepTime: r.data.prepTime,
+    servings: r.data.servings,
+    href: `${import.meta.env.BASE_URL}recipes/${r.id.replace(/\.md$/, "")}`,
+  }));
+---
+
+<BaseLayout title={`${data.title} — Cookbook`}>
+
+  <div class="pb-8 pt-8">
+    <Container>
+      <RecipeHero
+        title={data.title}
+        description={data.description}
+        image={data.image}
+        href={`/recipes/${recipeId}`}
+        prepTime={data.prepTime}
+        cookTime={data.cookTime}
+        servings={data.servings}
+        category={data.category}
+      />
+    </Container>
+  </div>
+
+  <Container>
+    <div class="space-y-10 pb-24">
+
+      <RecipeMeta
+        prepTime={data.prepTime}
+        cookTime={data.cookTime}
+        servings={data.servings}
+        difficulty={data.difficulty}
+      />
+
+      <!-- Action bar -->
+      <div class="flex flex-wrap gap-3">
+        <button
+          id="detail-fav-btn"
+          data-recipe-id={recipeId}
+          class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]"
+        >
+          <span id="detail-heart">🤍</span>
+          <span id="detail-fav-label">Save to Favorites</span>
+        </button>
+
+        <button
+          id="detail-edit-btn"
+          class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]"
+        >
+          ✏️ Edit Recipe
+        </button>
+
+        <CookingMode title={data.title} instructions={data.instructions} />
+      </div>
+
+      <!-- Ingredients + Instructions -->
+      <div class="grid gap-12 lg:grid-cols-[1fr_2fr]">
+
+        <div>
+          <div class="lg:sticky lg:top-28">
+            <h2 class="mb-6 text-3xl">Ingredients</h2>
+            <IngredientChecklist ingredients={data.ingredients} />
+          </div>
+        </div>
+
+        <div>
+          <h2 class="mb-6 text-3xl">Instructions</h2>
+          <InstructionList instructions={data.instructions} />
+
+          <div class="prose mt-10 text-[var(--color-text-muted)]">
+            <Content />
+          </div>
+        </div>
+
+      </div>
+
+      <RelatedRecipes recipes={related} />
+
+    </div>
+  </Container>
+
+</BaseLayout>
+
+<script define:vars={{ base: import.meta.env.BASE_URL, recipeId, recipeData: {
+  title: data.title,
+  description: data.description,
+  image: data.image ?? "",
+  category: data.category,
+  tags: data.tags ?? [],
+  prepTime: data.prepTime,
+  cookTime: data.cookTime,
+  servings: data.servings,
+  difficulty: data.difficulty,
+  ingredients: data.ingredients,
+  instructions: data.instructions,
+} }}>
+  // If the user has saved a local edit of this recipe, send them there instead
+  const _userRecipes = JSON.parse(localStorage.getItem("cookbook-user-recipes") ?? "[]");
+  if (_userRecipes.find((r) => r.id === recipeId)) {
+    window.location.replace(`${base}recipes/local?id=${encodeURIComponent(recipeId)}`);
+  }
+
+  const FAV_KEY = "cookbook-favorites";
+  const favBtn   = document.getElementById("detail-fav-btn");
+  const heart    = document.getElementById("detail-heart");
+  const favLabel = document.getElementById("detail-fav-label");
+
+  document.getElementById("detail-edit-btn")?.addEventListener("click", () => {
+    sessionStorage.setItem("cookbook-import", JSON.stringify({ ...recipeData, id: recipeId }));
+    window.location.href = `${base}manage?import=1`;
+  });
+
+  function isFav() {
+    return JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]").includes(recipeId);
+  }
+  function setFavUI(fav) {
+    if (heart)    heart.textContent    = fav ? "❤️" : "🤍";
+    if (favLabel) favLabel.textContent = fav ? "Saved!" : "Save to Favorites";
+  }
+  setFavUI(isFav());
+  favBtn?.addEventListener("click", () => {
+    const favs    = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]");
+    const wasFav  = favs.includes(recipeId);
+    localStorage.setItem(FAV_KEY, JSON.stringify(wasFav ? favs.filter(f => f !== recipeId) : [...favs, recipeId]));
+    setFavUI(!wasFav);
+  });
+</script>

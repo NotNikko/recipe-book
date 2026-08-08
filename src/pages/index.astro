@@ -1,17 +1,109 @@
 ---
+import { getCollection } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Container from "../components/layout/Container.astro";
+import Section from "../components/ui/Section.astro";
+import SearchBar from "../components/ui/SearchBar.astro";
+import RecipeHero from "../components/recipe/RecipeHero.astro";
+import RecipeGrid from "../components/recipe/RecipeGrid.astro";
+import CategoryGrid from "../components/category/CategoryGrid.astro";
 
+const allRecipes = await getCollection("recipes");
+
+const featured = allRecipes.find(r => r.data.featured) ?? allRecipes[0];
+
+const CATEGORY_ICONS: Record<string, string> = {
+  Baking: "🥐",
+  Breakfast: "☀️",
+  Lunch: "🥗",
+  Dinner: "🍽️",
+  Dessert: "🍰",
+  Snacks: "🍿",
+  Drinks: "🥤",
+  Soup: "🍲",
+  Pasta: "🍝",
+  Salads: "🥗",
+};
+
+const categoryMap = new Map<string, number>();
+for (const r of allRecipes) {
+  const cat = r.data.category;
+  categoryMap.set(cat, (categoryMap.get(cat) ?? 0) + 1);
+}
+
+const categories = [...categoryMap.entries()].map(([name, count]) => ({
+  name,
+  count,
+  href: `${import.meta.env.BASE_URL}recipes?category=${encodeURIComponent(name)}`,
+  icon: CATEGORY_ICONS[name] ?? "🍴",
+}));
+
+const recipes = allRecipes.map(r => ({
+  id: r.id.replace(/\.md$/, ""),
+  title: r.data.title,
+  description: r.data.description,
+  image: r.data.image,
+  category: r.data.category,
+  difficulty: r.data.difficulty,
+  prepTime: r.data.prepTime,
+  servings: r.data.servings,
+  href: `${import.meta.env.BASE_URL}recipes/${r.id.replace(/\.md$/, "")}`,
+}));
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout title="My Cookbook">
+
+  <!-- Hero search -->
+  <div class="py-16 md:py-24">
+    <Container>
+      <div class="mx-auto max-w-xl space-y-6 text-center">
+        <h1 class="text-5xl leading-tight md:text-6xl">What are you<br />cooking today?</h1>
+        <p class="text-lg text-[var(--color-text-muted)]">Your personal cookbook, always ready.</p>
+        <SearchBar />
+      </div>
+    </Container>
+  </div>
+
+  <!-- Main content -->
+  <Container>
+    <div class="space-y-16 pb-24">
+
+      {featured && (
+        <Section title="Featured Recipe">
+          <RecipeHero
+            title={featured.data.title}
+            description={featured.data.description}
+            image={featured.data.image}
+            href={`${import.meta.env.BASE_URL}recipes/${featured.id.replace(/\.md$/, "")}`}
+            prepTime={featured.data.prepTime}
+            cookTime={featured.data.cookTime}
+            servings={featured.data.servings}
+            category={featured.data.category}
+          />
+        </Section>
+      )}
+
+      {categories.length > 0 && (
+        <Section title="Browse by Category" subtitle="Find recipes by type">
+          <CategoryGrid categories={categories} />
+        </Section>
+      )}
+
+      <Section
+        title="All Recipes"
+        subtitle={`${recipes.length} ${recipes.length === 1 ? "recipe" : "recipes"} in your collection`}
+      >
+        <RecipeGrid recipes={recipes} />
+        <div id="user-recipe-grid" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"></div>
+      </Section>
+
+    </div>
+  </Container>
+
+</BaseLayout>
+
+<script>
+  import { mountCards } from "../scripts/user-recipes.ts";
+  const grid = document.getElementById("user-recipe-grid");
+  if (grid) mountCards(grid);
+</script>

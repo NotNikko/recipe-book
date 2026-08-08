@@ -1,0 +1,571 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Container from "../components/layout/Container.astro";
+---
+
+<BaseLayout title="Manage Recipes — Cookbook">
+
+<!-- ── Toast ─────────────────────────────────────────────────────────────── -->
+<div id="toast" aria-live="polite"
+  class="pointer-events-none fixed bottom-6 left-1/2 z-[200] -translate-x-1/2 translate-y-4 opacity-0 transition-all duration-300">
+  <div class="flex items-center gap-3 rounded-2xl bg-[var(--color-text)] px-5 py-3 text-sm font-medium text-[var(--color-bg)] shadow-lg">
+    <span id="toast-icon"></span>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+
+<!-- ── Delete confirm modal ───────────────────────────────────────────────── -->
+<div id="confirm-modal" style="display:none"
+  class="fixed inset-0 z-[150] items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-sm rounded-3xl bg-[var(--color-surface)] p-8 shadow-xl">
+    <h3 class="text-2xl">Delete recipe?</h3>
+    <p id="confirm-msg" class="mt-2 text-[var(--color-text-muted)]"></p>
+    <div class="mt-6 flex gap-3">
+      <button id="confirm-yes"
+        class="flex-1 rounded-full bg-[var(--color-danger)] py-3 text-sm font-medium text-white transition hover:opacity-90">
+        Delete
+      </button>
+      <button id="confirm-no"
+        class="flex-1 rounded-full border border-[var(--color-border)] py-3 text-sm transition hover:bg-[var(--color-bg)]">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recipe form modal ──────────────────────────────────────────────────── -->
+<div id="form-modal" style="display:none"
+  class="fixed inset-0 z-[150] items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+  <div class="flex max-h-[90dvh] w-full max-w-3xl flex-col rounded-3xl bg-[var(--color-surface)] shadow-xl">
+
+    <!-- Modal header -->
+    <div class="flex items-center justify-between border-b border-[var(--color-border)] px-8 py-5">
+      <h2 id="modal-title" class="text-2xl">New Recipe</h2>
+      <button id="modal-close"
+        class="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg)] hover:text-[var(--color-text)]">
+        ✕
+      </button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="flex-1 overflow-y-auto px-8 py-6">
+      <form id="recipe-form" class="space-y-6" novalidate>
+        <input type="hidden" id="field-id" />
+
+        <!-- Row 1: title -->
+        <div>
+          <label class="mb-1.5 block text-sm font-semibold">
+            Title <span class="text-[var(--color-danger)]">*</span>
+          </label>
+          <input id="field-title" type="text" autocomplete="off"
+            class="field-input w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+            placeholder="Chocolate Chip Cookies" />
+        </div>
+
+        <!-- Row 2: description -->
+        <div>
+          <label class="mb-1.5 block text-sm font-semibold">
+            Description <span class="text-[var(--color-danger)]">*</span>
+          </label>
+          <textarea id="field-description" rows="2"
+            class="field-input w-full resize-none rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+            placeholder="A short, enticing description"></textarea>
+        </div>
+
+        <!-- Row 3: category + difficulty -->
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">
+              Category <span class="text-[var(--color-danger)]">*</span>
+            </label>
+            <input id="field-category" list="category-list" autocomplete="off"
+              class="field-input w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder="Baking" />
+            <datalist id="category-list">
+              {["Baking","Breakfast","Lunch","Dinner","Dessert","Snacks","Drinks","Soup","Pasta","Salads"].map(c => (
+                <option value={c} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">Difficulty</label>
+            <select id="field-difficulty"
+              class="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20">
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 4: prep + cook + servings -->
+        <div class="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">
+              Prep <span class="text-xs font-normal text-[var(--color-text-muted)]">(min)</span>
+              <span class="text-[var(--color-danger)]">*</span>
+            </label>
+            <input id="field-prep" type="number" min="0"
+              class="field-input w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder="15" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">
+              Cook <span class="text-xs font-normal text-[var(--color-text-muted)]">(min)</span>
+              <span class="text-[var(--color-danger)]">*</span>
+            </label>
+            <input id="field-cook" type="number" min="0"
+              class="field-input w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder="30" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">
+              Servings <span class="text-[var(--color-danger)]">*</span>
+            </label>
+            <input id="field-servings" type="number" min="1"
+              class="field-input w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder="4" />
+          </div>
+        </div>
+
+        <!-- Row 5: tags + image -->
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">
+              Tags
+              <span class="font-normal text-[var(--color-text-muted)]">comma-separated</span>
+            </label>
+            <input id="field-tags" type="text"
+              class="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder="cookies, chocolate, dessert" />
+          </div>
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">Image URL</label>
+            <input id="field-image" type="url"
+              class="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 text-base outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder="https://..." />
+          </div>
+        </div>
+
+        <!-- Row 6: ingredients + instructions side-by-side -->
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">
+              Ingredients <span class="text-[var(--color-danger)]">*</span>
+              <span class="font-normal text-[var(--color-text-muted)]">one per line</span>
+            </label>
+            <textarea id="field-ingredients" rows="10"
+              class="field-input w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 font-mono text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder={"2 cups flour\n1 cup sugar\n2 eggs"}></textarea>
+          </div>
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold">
+              Instructions <span class="text-[var(--color-danger)]">*</span>
+              <span class="font-normal text-[var(--color-text-muted)]">one step per line</span>
+            </label>
+            <textarea id="field-instructions" rows="10"
+              class="field-input w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 font-mono text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              placeholder={"Preheat oven to 375°F.\nMix dry ingredients.\nBake for 11 minutes."}></textarea>
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- Modal footer -->
+    <div class="flex items-center gap-3 border-t border-[var(--color-border)] px-8 py-5">
+      <p id="form-error" class="flex-1 text-sm text-[var(--color-danger)]"></p>
+      <button type="button" id="modal-cancel"
+        class="rounded-full border border-[var(--color-border)] px-6 py-2.5 text-sm transition hover:bg-[var(--color-bg)]">
+        Cancel
+      </button>
+      <button type="submit" form="recipe-form"
+        class="rounded-full bg-[var(--color-primary)] px-8 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)]">
+        Save Recipe
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Page ───────────────────────────────────────────────────────────────── -->
+<Container>
+  <div class="space-y-10 py-16 pb-24">
+
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-5xl">My Recipes</h1>
+        <p class="mt-2 text-[var(--color-text-muted)]">Create and manage your personal recipes</p>
+      </div>
+      <button id="open-add-btn"
+        class="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-6 py-3 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)] active:scale-95">
+        + New Recipe
+      </button>
+    </div>
+
+    <!-- Recipe list -->
+    <div id="recipe-list" class="space-y-3"></div>
+    <p id="list-empty" class="text-[var(--color-text-muted)]">
+      No recipes yet — click "+ New Recipe" to get started.
+    </p>
+
+  </div>
+</Container>
+
+</BaseLayout>
+
+<style>
+  .field-input.invalid {
+    border-color: var(--color-danger);
+  }
+</style>
+
+<script>
+  import { getAll, upsert, remove, localHref, type UserRecipe } from "../scripts/user-recipes.ts";
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  const toastEl  = document.getElementById("toast")!;
+  const toastMsg = document.getElementById("toast-msg")!;
+  const toastIcon= document.getElementById("toast-icon")!;
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showToast(msg: string, type: "success" | "error" = "success") {
+    toastIcon.textContent = type === "success" ? "✓" : "✕";
+    toastMsg.textContent  = msg;
+    toastEl.style.opacity = "1";
+    toastEl.style.transform = "translateX(-50%) translateY(0)";
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastEl.style.opacity = "0";
+      toastEl.style.transform = "translateX(-50%) translateY(1rem)";
+    }, 3000);
+  }
+
+  // ── Confirm modal ──────────────────────────────────────────────────────────
+  const confirmModal = document.getElementById("confirm-modal")!;
+  const confirmMsg   = document.getElementById("confirm-msg")!;
+  const confirmYes   = document.getElementById("confirm-yes")!;
+  const confirmNo    = document.getElementById("confirm-no")!;
+
+  function openConfirm(message: string): Promise<boolean> {
+    return new Promise(resolve => {
+      confirmMsg.textContent = message;
+      confirmModal.style.display = "flex";
+      const yes = () => { closeConfirm(); resolve(true); };
+      const no  = () => { closeConfirm(); resolve(false); };
+      confirmYes.addEventListener("click", yes, { once: true });
+      confirmNo.addEventListener("click", no, { once: true });
+    });
+  }
+  function closeConfirm() { confirmModal.style.display = "none"; }
+
+  confirmModal.addEventListener("click", e => {
+    if (e.target === confirmModal) closeConfirm();
+  });
+
+  // ── Form modal ─────────────────────────────────────────────────────────────
+  const formModal  = document.getElementById("form-modal")!;
+  const modalTitle = document.getElementById("modal-title")!;
+  const form       = document.getElementById("recipe-form") as HTMLFormElement;
+  const formError  = document.getElementById("form-error")!;
+
+  const fId          = document.getElementById("field-id") as HTMLInputElement;
+  const fTitle       = document.getElementById("field-title") as HTMLInputElement;
+  const fDesc        = document.getElementById("field-description") as HTMLTextAreaElement;
+  const fCategory    = document.getElementById("field-category") as HTMLInputElement;
+  const fDifficulty  = document.getElementById("field-difficulty") as HTMLSelectElement;
+  const fPrep        = document.getElementById("field-prep") as HTMLInputElement;
+  const fCook        = document.getElementById("field-cook") as HTMLInputElement;
+  const fServings    = document.getElementById("field-servings") as HTMLInputElement;
+  const fTags        = document.getElementById("field-tags") as HTMLInputElement;
+  const fImage       = document.getElementById("field-image") as HTMLInputElement;
+  const fIngredients = document.getElementById("field-ingredients") as HTMLTextAreaElement;
+  const fInstructions= document.getElementById("field-instructions") as HTMLTextAreaElement;
+
+  const requiredFields = [fTitle, fDesc, fCategory, fPrep, fCook, fServings, fIngredients, fInstructions];
+
+  function openModal(recipe?: UserRecipe) {
+    formError.textContent = "";
+    requiredFields.forEach(el => el.classList.remove("invalid"));
+    modalTitle.textContent  = recipe ? "Edit Recipe" : "New Recipe";
+    fId.value           = recipe?.id ?? "";
+    fTitle.value        = recipe?.title ?? "";
+    fDesc.value         = recipe?.description ?? "";
+    fCategory.value     = recipe?.category ?? "";
+    fDifficulty.value   = recipe?.difficulty ?? "Easy";
+    fPrep.value         = recipe ? String(recipe.prepTime) : "";
+    fCook.value         = recipe ? String(recipe.cookTime) : "";
+    fServings.value     = recipe ? String(recipe.servings) : "";
+    fTags.value         = recipe?.tags.join(", ") ?? "";
+    fImage.value        = recipe?.image ?? "";
+    fIngredients.value  = recipe?.ingredients.join("\n") ?? "";
+    fInstructions.value = recipe?.instructions.join("\n") ?? "";
+    formModal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+    setTimeout(() => fTitle.focus(), 50);
+  }
+
+  function closeModal() {
+    formModal.style.display = "none";
+    document.body.style.overflow = "";
+    form.reset();
+  }
+
+  document.getElementById("open-add-btn")!.addEventListener("click", () => openModal());
+  document.getElementById("modal-close")!.addEventListener("click", closeModal);
+  document.getElementById("modal-cancel")!.addEventListener("click", closeModal);
+
+  formModal.addEventListener("click", e => {
+    if (e.target === formModal) closeModal();
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      if (formModal.classList.contains("open")) closeModal();
+      if (confirmModal.classList.contains("open")) confirmModal.classList.remove("open");
+    }
+  });
+
+  // ── Form submit ────────────────────────────────────────────────────────────
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    formError.textContent = "";
+
+    const ingredients  = fIngredients.value.split("\n").map(s => s.trim()).filter(Boolean);
+    const instructions = fInstructions.value.split("\n").map(s => s.trim()).filter(Boolean);
+
+    const invalid: HTMLElement[] = [];
+    if (!fTitle.value.trim())    invalid.push(fTitle);
+    if (!fDesc.value.trim())     invalid.push(fDesc);
+    if (!fCategory.value.trim()) invalid.push(fCategory);
+    if (!fPrep.value)            invalid.push(fPrep);
+    if (!fCook.value)            invalid.push(fCook);
+    if (!fServings.value)        invalid.push(fServings);
+    if (ingredients.length < 1)  invalid.push(fIngredients);
+    if (instructions.length < 1) invalid.push(fInstructions);
+
+    requiredFields.forEach(el => el.classList.remove("invalid"));
+
+    if (invalid.length > 0) {
+      invalid.forEach(el => el.classList.add("invalid"));
+      formError.textContent = "Please fill in all required fields.";
+      invalid[0].focus();
+      return;
+    }
+
+    const isNew = !fId.value;
+    const recipe: UserRecipe = {
+      id:           fId.value || crypto.randomUUID(),
+      title:        fTitle.value.trim(),
+      description:  fDesc.value.trim(),
+      image:        fImage.value.trim(),
+      category:     fCategory.value.trim(),
+      tags:         fTags.value.split(",").map(s => s.trim()).filter(Boolean),
+      prepTime:     parseInt(fPrep.value),
+      cookTime:     parseInt(fCook.value),
+      servings:     parseInt(fServings.value),
+      difficulty:   fDifficulty.value as UserRecipe["difficulty"],
+      featured:     false,
+      favorite:     false,
+      ingredients,
+      instructions,
+    };
+
+    upsert(recipe);
+    closeModal();
+    renderList();
+    showToast(isNew ? "Recipe created!" : "Recipe updated!");
+  });
+
+  // ── Recipe list ────────────────────────────────────────────────────────────
+  const recipeList = document.getElementById("recipe-list")!;
+  const listEmpty  = document.getElementById("list-empty")!;
+
+  function renderList() {
+    const recipes = getAll();
+    recipeList.innerHTML = "";
+
+    if (recipes.length === 0) {
+      listEmpty.classList.remove("hidden");
+      return;
+    }
+    listEmpty.classList.add("hidden");
+
+    recipes.forEach(recipe => {
+      const diffColor =
+        recipe.difficulty === "Easy"   ? "bg-green-100 text-green-700" :
+        recipe.difficulty === "Medium" ? "bg-yellow-100 text-yellow-700" :
+                                         "bg-red-100 text-red-700";
+
+      const row = document.createElement("div");
+      row.className = "group flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4 transition hover:border-[var(--color-primary)]/40 hover:shadow-sm";
+      row.innerHTML = `
+        <div class="flex flex-1 flex-wrap items-center gap-3 min-w-0">
+          <a href="${localHref(recipe.id)}" class="truncate font-medium hover:underline hover:text-[var(--color-primary)]">${esc(recipe.title)}</a>
+          <span class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs text-orange-700">${esc(recipe.category)}</span>
+          <span class="rounded-full px-2.5 py-0.5 text-xs ${diffColor}">${recipe.difficulty}</span>
+          <span class="text-sm text-[var(--color-text-muted)]">⏱ ${recipe.prepTime + recipe.cookTime} min · ${recipe.servings} servings</span>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button class="pub-btn rounded-full border border-[var(--color-border)] px-4 py-1.5 text-sm transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
+            🌐 Publish
+          </button>
+          <button class="edit-btn rounded-full border border-[var(--color-border)] px-4 py-1.5 text-sm transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
+            Edit
+          </button>
+          <button class="del-btn rounded-full border border-[var(--color-danger)]/50 px-4 py-1.5 text-sm text-[var(--color-danger)] transition hover:bg-red-50">
+            Delete
+          </button>
+        </div>
+      `;
+
+      row.querySelector<HTMLButtonElement>(".pub-btn")!.addEventListener("click", async (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        const r = getAll().find(x => x.id === recipe.id);
+        if (!r) return;
+        btn.disabled = true;
+        btn.textContent = "Publishing…";
+        await publishToGitHub(r);
+        btn.disabled = false;
+        btn.textContent = "🌐 Publish";
+      });
+
+      row.querySelector<HTMLButtonElement>(".edit-btn")!.addEventListener("click", () => {
+        const r = getAll().find(x => x.id === recipe.id);
+        if (r) openModal(r);
+      });
+
+      row.querySelector<HTMLButtonElement>(".del-btn")!.addEventListener("click", async () => {
+        const confirmed = await openConfirm(`"${recipe.title}" will be permanently deleted.`);
+        if (confirmed) {
+          remove(recipe.id);
+          renderList();
+          showToast("Recipe deleted.", "error");
+        }
+      });
+
+      recipeList.appendChild(row);
+    });
+  }
+
+  function esc(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  renderList();
+
+  // Auto-open edit form from URL param (linked from recipe page)
+  const params = new URLSearchParams(window.location.search);
+  const editId = params.get("edit");
+  if (editId) {
+    const r = getAll().find(x => x.id === editId);
+    if (r) openModal(r);
+  }
+
+  // Pre-fill form when cloning a content-collection recipe for editing
+  if (params.has("import")) {
+    const raw = sessionStorage.getItem("cookbook-import");
+    sessionStorage.removeItem("cookbook-import");
+    if (raw) {
+      try {
+        const imported = JSON.parse(raw);
+        const existing = getAll().find(x => x.id === imported.id);
+        openModal(existing ?? {
+          ...imported,
+          id: imported.id,
+          featured: false,
+          favorite: false,
+        });
+      } catch {}
+    }
+  }
+
+  // ── GitHub publishing ──────────────────────────────────────────────────────
+  // Token + repo are injected at build time from GitHub repo secrets —
+  // family members never see or configure them.
+  const PUBLISH_TOKEN = import.meta.env.PUBLIC_PUBLISH_TOKEN ?? "";
+  const PUBLISH_REPO  = import.meta.env.PUBLIC_PUBLISH_REPO  ?? "";
+
+  function yamlStr(s: string): string {
+    return '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+  }
+
+  function toSlug(title: string): string {
+    return title.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-") || "recipe";
+  }
+
+  function toMarkdown(recipe: UserRecipe): string {
+    const arr = (items: string[]) =>
+      !items || items.length === 0 ? " []" : "\n" + items.map(i => `  - ${yamlStr(i)}`).join("\n");
+    return [
+      "---",
+      `title: ${yamlStr(recipe.title)}`,
+      `description: ${yamlStr(recipe.description)}`,
+      `image: ${yamlStr(recipe.image ?? "")}`,
+      `category: ${yamlStr(recipe.category)}`,
+      `tags:${arr(recipe.tags ?? [])}`,
+      `prepTime: ${recipe.prepTime}`,
+      `cookTime: ${recipe.cookTime}`,
+      `servings: ${recipe.servings}`,
+      `difficulty: ${recipe.difficulty}`,
+      "featured: false",
+      "favorite: false",
+      `ingredients:${arr(recipe.ingredients)}`,
+      `instructions:${arr(recipe.instructions)}`,
+      "---",
+      "",
+    ].join("\n");
+  }
+
+  function encodeBase64(str: string): string {
+    const bytes = new TextEncoder().encode(str);
+    let binary = "";
+    bytes.forEach(b => (binary += String.fromCharCode(b)));
+    return btoa(binary);
+  }
+
+  async function publishToGitHub(recipe: UserRecipe): Promise<void> {
+    if (!PUBLISH_TOKEN || !PUBLISH_REPO) {
+      showToast("Publishing isn't set up yet — see repo secrets in GitHub Settings.", "error");
+      return;
+    }
+
+    const slug   = toSlug(recipe.title);
+    const path   = `src/content/recipes/${slug}.md`;
+    const apiUrl = `https://api.github.com/repos/${PUBLISH_REPO}/contents/${path}`;
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${PUBLISH_TOKEN}`,
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+
+    let sha: string | undefined;
+    try {
+      const check = await fetch(apiUrl, { headers });
+      if (check.ok) sha = (await check.json()).sha;
+    } catch {}
+
+    const body = {
+      message: sha ? `Update recipe: ${recipe.title}` : `Add recipe: ${recipe.title}`,
+      content: encodeBase64(toMarkdown(recipe)),
+      branch: "main",
+      ...(sha ? { sha } : {}),
+    };
+
+    try {
+      const resp = await fetch(apiUrl, { method: "PUT", headers, body: JSON.stringify(body) });
+      if (resp.ok) {
+        showToast(`"${recipe.title}" published to GitHub!`);
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        showToast((err as { message?: string }).message ?? "Publish failed.", "error");
+      }
+    } catch {
+      showToast("Network error — could not reach GitHub.", "error");
+    }
+  }
+</script>

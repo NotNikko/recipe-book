@@ -1,0 +1,88 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Container from "../../components/layout/Container.astro";
+import Section from "../../components/ui/Section.astro";
+import RecipeGrid from "../../components/recipe/RecipeGrid.astro";
+import Badge from "../../components/ui/Badge.astro";
+
+const allRecipes = await getCollection("recipes");
+
+const categories = [...new Set(allRecipes.map(r => r.data.category))].sort();
+
+const activeCategory = Astro.url.searchParams.get("category") ?? "All";
+
+const filtered = activeCategory === "All"
+  ? allRecipes
+  : allRecipes.filter(r => r.data.category === activeCategory);
+
+const recipes = filtered.map(r => ({
+  id: r.id.replace(/\.md$/, ""),
+  title: r.data.title,
+  description: r.data.description,
+  image: r.data.image,
+  category: r.data.category,
+  difficulty: r.data.difficulty,
+  prepTime: r.data.prepTime,
+  servings: r.data.servings,
+  href: `${import.meta.env.BASE_URL}recipes/${r.id.replace(/\.md$/, "")}`,
+}));
+---
+
+<BaseLayout title="Recipes — Cookbook">
+
+  <!-- Page header -->
+  <div class="py-16">
+    <Container>
+      <div class="space-y-2">
+        <h1 class="text-5xl">Recipes</h1>
+        <p class="text-[var(--color-text-muted)]">
+          {allRecipes.length} {allRecipes.length === 1 ? "recipe" : "recipes"} in your collection
+        </p>
+      </div>
+    </Container>
+  </div>
+
+  <Container>
+    <div class="space-y-10 pb-24">
+
+      <!-- Category filter -->
+      <div class="flex flex-wrap gap-2">
+        {["All", ...categories].map(cat => (
+          <a
+            href={cat === "All" ? `${import.meta.env.BASE_URL}recipes` : `${import.meta.env.BASE_URL}recipes?category=${encodeURIComponent(cat)}`}
+            class={`rounded-full px-4 py-2 text-sm transition ${
+              activeCategory === cat
+                ? "bg-[var(--color-primary)] text-white"
+                : "border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-bg)]"
+            }`}
+          >
+            {cat}
+          </a>
+        ))}
+      </div>
+
+      <!-- Recipe grid -->
+      <Section title={activeCategory === "All" ? "All Recipes" : activeCategory}>
+        {recipes.length > 0
+          ? <RecipeGrid recipes={recipes} />
+          : <p class="text-[var(--color-text-muted)]">No recipes in this category yet.</p>
+        }
+        <div id="user-recipe-grid" class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" data-category={activeCategory}></div>
+      </Section>
+
+    </div>
+  </Container>
+
+</BaseLayout>
+
+<script>
+  import { getAll, mountCards } from "../../scripts/user-recipes.ts";
+  const grid = document.getElementById("user-recipe-grid") as HTMLElement;
+  if (grid) {
+    const cat = grid.dataset.category ?? "All";
+    const all = getAll();
+    const filtered = cat === "All" ? all : all.filter(r => r.category === cat);
+    mountCards(grid, filtered);
+  }
+</script>

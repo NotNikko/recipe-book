@@ -1,0 +1,118 @@
+---
+---
+
+<div class="relative" id="search-wrapper">
+  <input
+    id="search-input"
+    type="search"
+    placeholder="Search recipes, ingredients, categories…"
+    autocomplete="off"
+    class="w-full rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-4 outline-none transition focus:border-[var(--color-primary)] focus:shadow-md"
+  />
+
+  <div
+    id="search-results"
+    class="absolute left-0 right-0 top-full z-50 mt-2 hidden overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg"
+  >
+    <ul id="results-list"></ul>
+    <p id="search-empty" class="hidden px-6 py-4 text-sm text-[var(--color-text-muted)]">
+      No recipes found.
+    </p>
+  </div>
+</div>
+
+<script>
+  import Fuse from "fuse.js";
+
+  interface Recipe {
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    tags: string[];
+  }
+
+  const input = document.getElementById("search-input") as HTMLInputElement;
+  const panel = document.getElementById("search-results") as HTMLDivElement;
+  const list  = document.getElementById("results-list") as HTMLUListElement;
+  const empty = document.getElementById("search-empty") as HTMLParagraphElement;
+
+  let fuse: Fuse<Recipe> | null = null;
+  let activeIndex = -1;
+  let indexLoaded = false;
+
+  async function loadIndex() {
+    if (indexLoaded) return;
+    indexLoaded = true;
+    const res = await fetch("/search-index.json");
+    const data: Recipe[] = await res.json();
+    fuse = new Fuse(data, {
+      keys: [
+        { name: "title",       weight: 4 },
+        { name: "category",    weight: 2 },
+        { name: "tags",        weight: 2 },
+        { name: "description", weight: 1 },
+      ],
+      threshold: 0.35,
+      minMatchCharLength: 1,
+    });
+  }
+
+  function show() { panel.classList.remove("hidden"); }
+  function hide() { panel.classList.add("hidden"); activeIndex = -1; }
+
+  function render(results: Fuse.FuseResult<Recipe>[]) {
+    list.innerHTML = "";
+    activeIndex = -1;
+
+    if (results.length === 0) {
+      empty.classList.remove("hidden");
+      return;
+    }
+    empty.classList.add("hidden");
+
+    results.slice(0, 6).forEach(({ item }) => {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <a
+          href="/recipes/${item.id}"
+          class="result-link flex items-center justify-between gap-4 border-b border-[var(--color-border)] px-5 py-3 last:border-0 transition hover:bg-[var(--color-bg)]"
+        >
+          <div class="min-w-0">
+            <p class="truncate font-medium">${item.title}</p>
+            <p class="truncate text-sm text-[var(--color-text-muted)]">${item.category}</p>
+          </div>
+          <span class="flex-shrink-0 text-[var(--color-text-muted)]">→</span>
+        </a>
+      `;
+      list.appendChild(li);
+    });
+  }
+
+  function runSearch() {
+    const q = input.value.trim();
+    if (!q || !fuse) { hide(); return; }
+    render(fuse.search(q));
+    show();
+  }
+
+  function setActive(links: NodeListOf<HTMLAnchorElement>, next: number) {
+    links.forEach((a, i) => a.classList.toggle("bg-[var(--color-bg)]", i === next));
+    activeIndex = next;
+  }
+
+  input.addEventListener("focus", loadIndex);
+  input.addEventListener("input", runSearch);
+
+  input.addEventListener("keydown", (e) => {
+    const links = list.querySelectorAll<HTMLAnchorElement>(".result-link");
+    if (e.key === "Escape")    { hide(); input.blur(); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive(links, Math.min(activeIndex + 1, links.length - 1)); }
+    if (e.key === "ArrowUp")   { e.preventDefault(); setActive(links, Math.max(activeIndex - 1, 0)); }
+    if (e.key === "Enter" && activeIndex >= 0) window.location.href = links[activeIndex].href;
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!document.getElementById("search-wrapper")?.contains(e.target as Node)) hide();
+  });
+</script>

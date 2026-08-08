@@ -1,0 +1,60 @@
+---
+import "../styles/global.css";
+
+import Navbar from "../components/layout/Navbar.astro";
+import Footer from "../components/layout/Footer.astro";
+
+interface Props {
+  title?: string;
+}
+
+const { title = "Cookbook" } = Astro.props;
+---
+
+<html lang="en">
+
+<head>
+
+<title>{title}</title>
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#a5663f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Cookbook" />
+
+<link rel="manifest" href="/manifest.json" />
+<link rel="apple-touch-icon" href="/favicon.svg" />
+
+<!-- Theme init — must run before first paint to avoid flash -->
+<script is:inline>
+  (function () {
+    var s = localStorage.getItem("cookbook-theme");
+    var dark = s ? s === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.classList.toggle("dark", dark);
+  })();
+</script>
+
+</head>
+
+<body>
+
+<Navbar />
+
+<main>
+<slot />
+</main>
+
+<Footer />
+
+</body>
+
+<script>
+  // Only register SW in production — skip on localhost to avoid stale cache in dev
+  if ("serviceWorker" in navigator && location.hostname !== "localhost") {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+</script>
+
+</html>

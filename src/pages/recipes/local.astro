@@ -1,0 +1,327 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Container from "../../components/layout/Container.astro";
+---
+
+<BaseLayout title="Recipe — Cookbook">
+
+  <!-- Not found -->
+  <div id="not-found" class="hidden py-32 text-center">
+    <p class="text-xl text-[var(--color-text-muted)]">Recipe not found.</p>
+    <a href={import.meta.env.BASE_URL + 'manage'} class="mt-4 inline-block text-[var(--color-primary)] underline">← Go to Manage</a>
+  </div>
+
+  <!-- Recipe shell (populated by script) -->
+  <div id="recipe-shell" class="hidden">
+
+    <!-- Hero -->
+    <div class="pb-8 pt-8">
+      <div class="container" style="width:min(1200px,calc(100% - 2rem));margin-inline:auto">
+        <div
+          id="hero"
+          class="group relative flex min-h-[540px] items-end overflow-hidden rounded-3xl"
+          style="background:linear-gradient(135deg,var(--color-primary) 0%,var(--color-accent) 100%)"
+        >
+          <img id="hero-img" src="" alt="" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"></div>
+          <div class="relative z-10 max-w-2xl space-y-4 p-8 text-white md:p-12">
+            <div class="flex flex-wrap gap-2">
+              <span id="hero-category" class="rounded-full bg-white/20 px-3 py-1 text-sm backdrop-blur-sm"></span>
+              <span class="rounded-full bg-[var(--color-accent)] px-3 py-1 text-sm font-medium text-[var(--color-text)]">My Recipe</span>
+            </div>
+            <h2 id="hero-title" class="text-5xl leading-tight md:text-6xl"></h2>
+            <p id="hero-desc" class="text-lg text-white/80"></p>
+            <div class="flex flex-wrap gap-6 text-sm text-white/70">
+              <span id="hero-prep"></span>
+              <span id="hero-cook"></span>
+              <span id="hero-servings"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <Container>
+      <div class="space-y-10 pb-24">
+
+        <!-- Meta bar -->
+        <div class="flex flex-wrap gap-px overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-border)]">
+          {[
+            ["Prep Time", "meta-prep"],
+            ["Cook Time", "meta-cook"],
+            ["Servings",  "meta-servings"],
+          ].map(([label, id]) => (
+            <div class="flex flex-1 flex-col items-center gap-1 bg-[var(--color-surface)] px-6 py-4 text-center">
+              <span class="text-xs uppercase tracking-widest text-[var(--color-text-muted)]">{label}</span>
+              <span id={id} class="text-lg font-semibold"></span>
+            </div>
+          ))}
+          <div class="flex flex-1 flex-col items-center gap-1 bg-[var(--color-surface)] px-6 py-4 text-center">
+            <span class="text-xs uppercase tracking-widest text-[var(--color-text-muted)]">Difficulty</span>
+            <span id="meta-difficulty" class="rounded-full px-3 py-0.5 text-sm font-medium"></span>
+          </div>
+        </div>
+
+        <!-- Action bar -->
+        <div class="flex flex-wrap gap-3">
+          <button id="local-fav-btn" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]">
+            <span id="local-heart">🤍</span>
+            <span id="local-fav-label">Save to Favorites</span>
+          </button>
+          <button id="local-cook-btn" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm font-medium transition hover:bg-[var(--color-bg)] hover:shadow-md">
+            🍳 Cooking Mode
+          </button>
+          <a id="local-edit-link" href="#" class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-2.5 text-sm transition hover:bg-[var(--color-bg)]">
+            ✏️ Edit
+          </a>
+        </div>
+
+        <!-- Ingredients + Instructions -->
+        <div class="grid gap-12 lg:grid-cols-[1fr_2fr]">
+
+          <div>
+            <div class="lg:sticky lg:top-28">
+              <h2 class="mb-6 text-3xl">Ingredients</h2>
+              <ul id="local-ingredients" class="space-y-3"></ul>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="mb-6 text-3xl">Instructions</h2>
+            <ol id="local-instructions" class="space-y-8"></ol>
+          </div>
+
+        </div>
+
+      </div>
+    </Container>
+  </div>
+
+  <!-- Cooking Mode overlay -->
+  <div id="cm-overlay" class="fixed inset-0 z-[100] hidden flex-col bg-[var(--color-bg)]"
+       style="padding:clamp(1.5rem,5vw,3rem)">
+    <div class="flex items-center justify-between">
+      <div>
+        <p id="cm-recipe" class="text-sm font-medium text-[var(--color-text-muted)]"></p>
+        <p id="cm-counter" class="text-xs text-[var(--color-text-muted)]"></p>
+      </div>
+      <button id="cm-exit" class="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm transition hover:bg-[var(--color-surface)]">✕ Exit</button>
+    </div>
+    <div class="flex flex-1 flex-col items-center justify-center gap-6 text-center">
+      <p id="cm-label" class="text-sm font-semibold uppercase tracking-widest text-[var(--color-primary)]"></p>
+      <p id="cm-text" class="max-w-2xl leading-relaxed" style="font-size:clamp(1.25rem,3vw,2rem)"></p>
+      <div id="cm-timer-wrap" class="hidden flex-col items-center gap-3">
+        <button id="cm-timer-btn" class="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-6 py-3 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)]">
+          ⏱ <span id="cm-timer-label"></span>
+        </button>
+        <span id="cm-timer-disp" class="hidden text-4xl font-semibold tabular-nums text-[var(--color-primary)]"></span>
+      </div>
+    </div>
+    <div class="flex justify-center gap-2 py-4" id="cm-dots"></div>
+    <div class="flex items-center justify-between">
+      <button id="cm-prev" class="rounded-full border border-[var(--color-border)] px-6 py-3 text-sm transition hover:bg-[var(--color-surface)] disabled:opacity-30">← Previous</button>
+      <button id="cm-next" class="rounded-full bg-[var(--color-primary)] px-6 py-3 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)]">Next →</button>
+    </div>
+  </div>
+
+</BaseLayout>
+
+<style>
+  .ing-check.checked { background: var(--color-primary); border-color: var(--color-primary); }
+</style>
+
+<script>
+  import { getById, localHref } from "../../scripts/user-recipes.ts";
+
+  const FAV_KEY = "cookbook-favorites";
+
+  const id = new URLSearchParams(window.location.search).get("id") ?? "";
+  const recipe = id ? getById(id) : undefined;
+
+  if (!recipe) {
+    document.getElementById("not-found")!.classList.remove("hidden");
+  } else {
+    // ── Populate shell ────────────────────────────────────────────────────
+    document.title = `${recipe.title} — Cookbook`;
+    document.getElementById("recipe-shell")!.classList.remove("hidden");
+
+    // Hero
+    const heroImg = document.getElementById("hero-img") as HTMLImageElement;
+    if (recipe.image) { heroImg.src = recipe.image; heroImg.alt = recipe.title; }
+    else heroImg.style.display = "none";
+    document.getElementById("hero-title")!.textContent    = recipe.title;
+    document.getElementById("hero-desc")!.textContent     = recipe.description;
+    document.getElementById("hero-category")!.textContent = recipe.category;
+    document.getElementById("hero-prep")!.textContent     = `⏱ Prep ${recipe.prepTime} min`;
+    document.getElementById("hero-cook")!.textContent     = `🔥 Cook ${recipe.cookTime} min`;
+    document.getElementById("hero-servings")!.textContent = `🍽 ${recipe.servings} servings`;
+
+    // Meta
+    document.getElementById("meta-prep")!.textContent     = `${recipe.prepTime} min`;
+    document.getElementById("meta-cook")!.textContent     = `${recipe.cookTime} min`;
+    document.getElementById("meta-servings")!.textContent = String(recipe.servings);
+    const diff = document.getElementById("meta-difficulty")!;
+    diff.textContent = recipe.difficulty;
+    diff.className += recipe.difficulty === "Easy"
+      ? " bg-green-100 text-green-700"
+      : recipe.difficulty === "Medium"
+      ? " bg-yellow-100 text-yellow-700"
+      : " bg-red-100 text-red-700";
+
+    // Ingredient checklist
+    const ingList = document.getElementById("local-ingredients")!;
+    recipe.ingredients.forEach(ing => {
+      const li = document.createElement("li");
+      li.className = "ing-item flex cursor-pointer items-start gap-3 transition-opacity";
+      li.innerHTML = `
+        <button class="ing-check mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-border)] transition" aria-label="Check off ${ing}">
+          <span class="check-mark hidden text-white" style="font-size:10px">✓</span>
+        </button>
+        <span class="ing-text leading-relaxed">${ing}</span>
+      `;
+      const btn = li.querySelector<HTMLButtonElement>(".ing-check")!;
+      btn.addEventListener("click", () => {
+        const on = btn.classList.toggle("checked");
+        li.classList.toggle("opacity-40", on);
+        li.querySelector(".ing-text")!.classList.toggle("line-through", on);
+        li.querySelector<HTMLSpanElement>(".check-mark")!.classList.toggle("hidden", !on);
+      });
+      ingList.appendChild(li);
+    });
+
+    // Instructions
+    const insList = document.getElementById("local-instructions")!;
+    recipe.instructions.forEach((step, i) => {
+      const li = document.createElement("li");
+      li.className = "flex gap-5";
+      li.innerHTML = `
+        <span class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white">${i + 1}</span>
+        <p class="leading-relaxed">${step}</p>
+      `;
+      insList.appendChild(li);
+    });
+
+    // ── Favorites ─────────────────────────────────────────────────────────
+    const favBtn   = document.getElementById("local-fav-btn")!;
+    const heart    = document.getElementById("local-heart")!;
+    const favLabel = document.getElementById("local-fav-label")!;
+
+    function isFav() {
+      return (JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as string[]).includes(id);
+    }
+    function setFavUI(fav: boolean) {
+      heart.textContent    = fav ? "❤️" : "🤍";
+      favLabel.textContent = fav ? "Saved!" : "Save to Favorites";
+    }
+    setFavUI(isFav());
+    favBtn.addEventListener("click", () => {
+      const favs = JSON.parse(localStorage.getItem(FAV_KEY) ?? "[]") as string[];
+      const was  = favs.includes(id);
+      localStorage.setItem(FAV_KEY, JSON.stringify(was ? favs.filter(f => f !== id) : [...favs, id]));
+      setFavUI(!was);
+    });
+
+    // Edit link
+    (document.getElementById("local-edit-link") as HTMLAnchorElement).href = `${import.meta.env.BASE_URL}manage?edit=${id}`;
+
+    // ── Cooking Mode ──────────────────────────────────────────────────────
+    const overlay   = document.getElementById("cm-overlay")!;
+    const cmRecipe  = document.getElementById("cm-recipe")!;
+    const cmCounter = document.getElementById("cm-counter")!;
+    const cmLabel   = document.getElementById("cm-label")!;
+    const cmText    = document.getElementById("cm-text")!;
+    const cmPrev    = document.getElementById("cm-prev") as HTMLButtonElement;
+    const cmNext    = document.getElementById("cm-next")!;
+    const dotsWrap  = document.getElementById("cm-dots")!;
+    const timerWrap = document.getElementById("cm-timer-wrap")!;
+    const timerBtn  = document.getElementById("cm-timer-btn")!;
+    const timerLabel= document.getElementById("cm-timer-label")!;
+    const timerDisp = document.getElementById("cm-timer-disp")!;
+
+    cmRecipe.textContent = recipe.title;
+    let step = 0;
+    let timerInterval: ReturnType<typeof setInterval> | null = null;
+    let timerRunning = false;
+    let wakeLock: WakeLockSentinel | null = null;
+
+    function extractMins(text: string): number | null {
+      const m = text.match(/(\d+)(?:\s+to\s+(\d+))?\s+minutes?/i);
+      return m ? (m[2] ? parseInt(m[2]) : parseInt(m[1])) : null;
+    }
+
+    const steps = recipe.instructions.map(text => ({ text, mins: extractMins(text) }));
+
+    recipe.instructions.forEach((_, i) => {
+      const dot = document.createElement("div");
+      dot.style.cssText = "width:8px;height:8px;border-radius:50%;transition:background .2s;";
+      dotsWrap.appendChild(dot);
+    });
+
+    function clearTimer() {
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      timerRunning = false;
+      timerDisp.classList.add("hidden");
+      if (steps[step]?.mins) timerLabel.textContent = `Set ${steps[step].mins} min timer`;
+    }
+
+    function renderCMStep() {
+      const s = steps[step];
+      cmCounter.textContent = `Step ${step + 1} of ${steps.length}`;
+      cmLabel.textContent   = `Step ${step + 1}`;
+      cmText.textContent    = s.text;
+      cmPrev.disabled       = step === 0;
+      cmNext.textContent    = step === steps.length - 1 ? "Finish ✓" : "Next →";
+      clearTimer();
+      if (s.mins) { timerWrap.style.display = "flex"; timerLabel.textContent = `Set ${s.mins} min timer`; }
+      else timerWrap.style.display = "none";
+      Array.from(dotsWrap.children).forEach((d: Element, i) => {
+        (d as HTMLElement).style.background = i === step ? "var(--color-primary)" : "var(--color-border)";
+      });
+    }
+
+    async function openCM() {
+      step = 0;
+      overlay.style.display = "flex";
+      renderCMStep();
+      document.body.style.overflow = "hidden";
+      if ("wakeLock" in navigator) {
+        try { wakeLock = await (navigator as any).wakeLock.request("screen"); } catch {}
+      }
+    }
+
+    function closeCM() {
+      overlay.style.display = "";
+      clearTimer();
+      document.body.style.overflow = "";
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
+
+    document.getElementById("local-cook-btn")!.addEventListener("click", openCM);
+    document.getElementById("cm-exit")!.addEventListener("click", closeCM);
+    cmPrev.addEventListener("click", () => { if (step > 0) { step--; renderCMStep(); } });
+    cmNext.addEventListener("click", () => {
+      if (step < steps.length - 1) { step++; renderCMStep(); } else closeCM();
+    });
+    timerBtn.addEventListener("click", () => {
+      const mins = steps[step].mins;
+      if (!mins) return;
+      if (timerRunning) { clearTimer(); return; }
+      let remaining = mins * 60;
+      timerRunning = true;
+      timerLabel.textContent = "Cancel timer";
+      timerDisp.classList.remove("hidden");
+      const tick = () => {
+        const m = Math.floor(remaining / 60), s = remaining % 60;
+        timerDisp.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+        if (remaining-- <= 0) { clearInterval(timerInterval!); timerDisp.textContent = "Done! 🎉"; timerLabel.textContent = `Set ${mins} min timer`; timerRunning = false; }
+      };
+      tick(); timerInterval = setInterval(tick, 1000);
+    });
+    document.addEventListener("keydown", e => {
+      if (overlay.style.display !== "flex") return;
+      if (e.key === "ArrowRight" && step < steps.length - 1) { step++; renderCMStep(); }
+      if (e.key === "ArrowLeft"  && step > 0)                { step--; renderCMStep(); }
+      if (e.key === "Escape") closeCM();
+    });
+  }
+</script>

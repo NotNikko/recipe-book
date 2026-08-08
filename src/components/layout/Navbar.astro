@@ -1,0 +1,121 @@
+---
+import Container from "./Container.astro";
+import Logo from "./Logo.astro";
+
+const base = import.meta.env.BASE_URL;
+const links = [
+  { href: base,                  label: "Home" },
+  { href: `${base}recipes`,    label: "Recipes" },
+  { href: `${base}favorites`,  label: "Favorites" },
+  { href: `${base}manage`,     label: "Manage" },
+];
+---
+
+<header class="sticky top-0 z-50 border-b border-[var(--color-border)] bg-[var(--color-bg)] backdrop-blur">
+  <Container>
+    <nav class="flex h-20 items-center justify-between gap-4">
+
+      <Logo />
+
+      <!-- Desktop links -->
+      <div class="hidden items-center gap-8 md:flex">
+        {links.map(l => (
+          <a href={l.href} class="text-sm font-medium transition hover:text-[var(--color-primary)]">{l.label}</a>
+        ))}
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Theme toggle -->
+        <button id="theme-toggle" aria-label="Toggle theme"
+          class="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-[var(--color-surface)]">
+          <span id="theme-icon">🌙</span>
+        </button>
+
+        <!-- Mobile hamburger -->
+        <button id="menu-toggle" aria-label="Open menu" aria-expanded="false"
+          class="flex h-9 w-9 flex-col items-center justify-center gap-[5px] rounded-full transition hover:bg-[var(--color-surface)] md:hidden">
+          <span class="hamburger-line block h-[2px] w-5 rounded-full bg-current transition-all"></span>
+          <span class="hamburger-line block h-[2px] w-5 rounded-full bg-current transition-all"></span>
+          <span class="hamburger-line block h-[2px] w-5 rounded-full bg-current transition-all"></span>
+        </button>
+      </div>
+
+    </nav>
+  </Container>
+
+  <!-- Mobile menu panel -->
+  <div id="mobile-menu"
+    class="hidden border-t border-[var(--color-border)] bg-[var(--color-bg)] md:hidden">
+    <Container>
+      <div class="flex flex-col py-4">
+        {links.map(l => (
+          <a href={l.href}
+            class="mobile-link rounded-xl px-3 py-3 text-base font-medium transition hover:bg-[var(--color-surface)] hover:text-[var(--color-primary)]">
+            {l.label}
+          </a>
+        ))}
+      </div>
+    </Container>
+  </div>
+</header>
+
+<style>
+  #menu-toggle.open .hamburger-line:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  #menu-toggle.open .hamburger-line:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  #menu-toggle.open .hamburger-line:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+</style>
+
+<script>
+  // ── Mobile menu ────────────────────────────────────────────────────────────
+  const toggle = document.getElementById("menu-toggle")!;
+  const menu   = document.getElementById("mobile-menu")!;
+
+  function openMenu() {
+    menu.classList.remove("hidden");
+    toggle.classList.add("open");
+    toggle.setAttribute("aria-expanded", "true");
+  }
+  function closeMenu() {
+    menu.classList.add("hidden");
+    toggle.classList.remove("open");
+    toggle.setAttribute("aria-expanded", "false");
+  }
+
+  toggle.addEventListener("click", () =>
+    menu.classList.contains("hidden") ? openMenu() : closeMenu()
+  );
+
+  // Close when a nav link is tapped
+  menu.querySelectorAll(".mobile-link").forEach(link =>
+    link.addEventListener("click", closeMenu)
+  );
+
+  // Close on outside click
+  document.addEventListener("click", e => {
+    const header = document.querySelector("header")!;
+    if (!header.contains(e.target as Node)) closeMenu();
+  });
+
+  // ── Dark mode ─────────────────────────────────────────────────────────────
+  const themeBtn  = document.getElementById("theme-toggle")!;
+  const themeIcon = document.getElementById("theme-icon")!;
+
+  function syncIcon() {
+    themeIcon.textContent = document.documentElement.classList.contains("dark") ? "☀️" : "🌙";
+  }
+  syncIcon();
+
+  themeBtn.addEventListener("click", () => {
+    const isDark = document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", !isDark);
+    localStorage.setItem("cookbook-theme", isDark ? "light" : "dark");
+    syncIcon();
+  });
+</script>
