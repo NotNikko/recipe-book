@@ -160,10 +160,16 @@ import Container from "../components/layout/Container.astro";
               placeholder={"2 cups flour\n1 cup sugar\n2 eggs"}></textarea>
           </div>
           <div>
-            <label class="mb-1.5 block text-sm font-semibold">
-              Instructions <span class="text-[var(--color-danger)]">*</span>
-              <span class="font-normal text-[var(--color-text-muted)]">one step per line</span>
-            </label>
+            <div class="mb-1.5 flex items-center justify-between gap-2">
+              <label class="block text-sm font-semibold">
+                Instructions <span class="text-[var(--color-danger)]">*</span>
+                <span class="font-normal text-[var(--color-text-muted)]">one step per line</span>
+              </label>
+              <button type="button" id="gen-instructions-btn"
+                class="flex-shrink-0 rounded-full border border-[var(--color-border)] px-3 py-1 text-xs font-medium transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">
+                ✨ Auto-generate
+              </button>
+            </div>
             <textarea id="field-instructions" rows="10"
               class="field-input w-full resize-y rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 font-mono text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
               placeholder={"Preheat oven to 375°F.\nMix dry ingredients.\nBake for 11 minutes."}></textarea>
@@ -284,6 +290,102 @@ import Container from "../components/layout/Container.astro";
   const fInstructions= document.getElementById("field-instructions") as HTMLTextAreaElement;
 
   const requiredFields = [fTitle, fDesc, fCategory, fPrep, fCook, fServings, fIngredients, fInstructions];
+
+  // ── Auto-generate instructions ────────────────────────────────────────────
+  // Best-effort draft built from the other fields — always left for the user
+  // to review and edit before saving, never auto-submitted.
+  type IngredientGroup = "dry" | "fat" | "egg" | "wet" | "mixin" | "protein" | "vegetable" | "other";
+
+  function classifyIngredient(raw: string): IngredientGroup {
+    const s = raw.toLowerCase();
+    if (/\b(flour|sugar|baking powder|baking soda|cocoa|oats?|cornstarch|salt)\b/.test(s)) return "dry";
+    if (/\b(butter|oil|shortening|margarine)\b/.test(s)) return "fat";
+    if (/\begg/.test(s)) return "egg";
+    if (/\b(milk|water|buttermilk|cream|yogurt|juice|broth|stock|wine|vinegar|starter)\b/.test(s)) return "wet";
+    if (/\b(chocolate|chip|berr(y|ies)|nuts?|walnut|pecan|raisin|zest)\b/.test(s)) return "mixin";
+    if (/\b(chicken|beef|pork|fish|shrimp|tofu|sausage|bacon|turkey|lamb)\b/.test(s)) return "protein";
+    if (/\b(onion|garlic|carrot|celery|pepper|tomato|spinach|broccoli|potato|mushroom|zucchini|lettuce|cucumber)\b/.test(s)) return "vegetable";
+    return "other";
+  }
+
+  function groupIngredients(ingredients: string[]): Record<IngredientGroup, string[]> {
+    const groups: Record<IngredientGroup, string[]> = {
+      dry: [], fat: [], egg: [], wet: [], mixin: [], protein: [], vegetable: [], other: [],
+    };
+    ingredients.forEach(i => groups[classifyIngredient(i)].push(i));
+    return groups;
+  }
+
+  function guessVessel(title: string): string {
+    const t = title.toLowerCase();
+    if (/muffin/.test(t))        return "12-cup muffin tin lined with paper liners";
+    if (/cookie/.test(t))        return "parchment-lined baking sheet";
+    if (/(bread|loaf)/.test(t))  return "greased loaf pan";
+    if (/cake/.test(t))          return "greased and floured cake pan";
+    if (/scone/.test(t))         return "parchment-lined baking sheet";
+    return "prepared baking pan";
+  }
+
+  function generateBakedInstructions(title: string, ingredients: string[], cookTime: string): string[] {
+    const g = groupIngredients(ingredients);
+    const vessel = guessVessel(title);
+    const steps: string[] = [];
+    steps.push(`Preheat the oven to [temperature]°F and prepare a ${vessel}.`);
+    if (g.dry.length) steps.push(`Whisk together the dry ingredients (${g.dry.join(", ")}) in a large bowl.`);
+    const wetParts = [...g.fat, ...g.wet, ...g.egg];
+    if (wetParts.length) steps.push(`In a separate bowl, mix together ${wetParts.join(", ")} until smooth.`);
+    steps.push(g.dry.length && wetParts.length
+      ? "Pour the wet ingredients into the dry ingredients and stir just until combined — avoid overmixing."
+      : "Combine all ingredients until just incorporated — avoid overmixing.");
+    if (g.mixin.length) steps.push(`Gently fold in ${g.mixin.join(", ")}.`);
+    if (g.other.length) steps.push(`Add ${g.other.join(", ")} as needed.`);
+    steps.push(`Transfer to the ${vessel} and bake for ${cookTime || "[X]"} minutes, or until a toothpick inserted into the center comes out clean.`);
+    steps.push("Let cool before serving.");
+    return steps;
+  }
+
+  function generateStovetopInstructions(ingredients: string[], cookTime: string): string[] {
+    const g = groupIngredients(ingredients);
+    const steps: string[] = ["Prep all ingredients — wash, chop, and measure as needed."];
+    if (g.protein.length) steps.push(`Season ${g.protein.join(", ")} and cook in a large pan over medium-high heat until browned, about 5 to 7 minutes.`);
+    if (g.vegetable.length) steps.push(`Add ${g.vegetable.join(", ")} and cook until softened, about 4 to 5 minutes.`);
+    if (g.wet.length) steps.push(`Stir in ${g.wet.join(", ")} and bring to a simmer.`);
+    const remaining = [...g.dry, ...g.mixin, ...g.other];
+    if (remaining.length) steps.push(`Add ${remaining.join(", ")} and combine well.`);
+    steps.push(`Cook for a total of about ${cookTime || "[X]"} minutes, or until everything is cooked through, adjusting seasoning to taste.`);
+    steps.push("Serve warm.");
+    return steps;
+  }
+
+  function generateAssemblyInstructions(): string[] {
+    return [
+      "Prepare all ingredients as listed above.",
+      "Combine everything in a large bowl (or glass) and mix well.",
+      "Adjust to taste and serve immediately.",
+    ];
+  }
+
+  function generateInstructions(title: string, category: string, ingredients: string[], cookTime: string): string[] {
+    const cat = category.toLowerCase();
+    if (["baking", "dessert", "bread"].includes(cat)) return generateBakedInstructions(title, ingredients, cookTime);
+    if (["salads", "drinks"].includes(cat)) return generateAssemblyInstructions();
+    return generateStovetopInstructions(ingredients, cookTime);
+  }
+
+  document.getElementById("gen-instructions-btn")!.addEventListener("click", async () => {
+    const ingredients = fIngredients.value.split("\n").map(s => s.trim()).filter(Boolean);
+    if (!fTitle.value.trim() || ingredients.length === 0) {
+      showToast("Add a title and at least one ingredient first.", "error");
+      return;
+    }
+    if (fInstructions.value.trim()) {
+      const confirmed = await openConfirm("This will replace your current instructions. Continue?");
+      if (!confirmed) return;
+    }
+    const draft = generateInstructions(fTitle.value.trim(), fCategory.value.trim(), ingredients, fCook.value);
+    fInstructions.value = draft.join("\n");
+    showToast("Draft instructions generated — review and edit before saving.");
+  });
 
   function openModal(recipe?: UserRecipe) {
     formError.textContent = "";
