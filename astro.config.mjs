@@ -7,7 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   site: 'https://notnikko.github.io',
   // base is only set when building in GitHub Actions — local dev uses root
-  base: process.env.GITHUB_ACTIONS ? '/recipe-book' : undefined,
+  // Trailing slash is required — BASE_URL must end with / for path concatenation to work
+  base: process.env.GITHUB_ACTIONS ? '/recipe-book/' : undefined,
   vite: {
     plugins: [tailwindcss()]
   }
