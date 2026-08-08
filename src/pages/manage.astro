@@ -426,7 +426,14 @@ import Container from "../components/layout/Container.astro";
         if (!r) return;
         btn.disabled = true;
         btn.textContent = "Publishing…";
-        await publishToGitHub(r);
+        const published = await publishToGitHub(r);
+        if (published) {
+          // Now that the recipe lives in the published content collection,
+          // drop the local copy so it isn't duplicated.
+          remove(recipe.id);
+          renderList();
+          return;
+        }
         btn.disabled = false;
         btn.textContent = "🌐 Publish";
       });
@@ -529,10 +536,10 @@ import Container from "../components/layout/Container.astro";
     return btoa(binary);
   }
 
-  async function publishToGitHub(recipe: UserRecipe): Promise<void> {
+  async function publishToGitHub(recipe: UserRecipe): Promise<boolean> {
     if (!PUBLISH_TOKEN || !PUBLISH_REPO) {
       showToast("Publishing isn't set up yet — see repo secrets in GitHub Settings.", "error");
-      return;
+      return false;
     }
 
     const slug   = toSlug(recipe.title);
@@ -561,12 +568,15 @@ import Container from "../components/layout/Container.astro";
       const resp = await fetch(apiUrl, { method: "PUT", headers, body: JSON.stringify(body) });
       if (resp.ok) {
         showToast(`"${recipe.title}" published to GitHub!`);
+        return true;
       } else {
         const err = await resp.json().catch(() => ({}));
         showToast((err as { message?: string }).message ?? "Publish failed.", "error");
+        return false;
       }
     } catch {
       showToast("Network error — could not reach GitHub.", "error");
+      return false;
     }
   }
 </script>
