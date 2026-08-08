@@ -105,7 +105,17 @@ const recipes = allRecipes.map(r => ({
 </BaseLayout>
 
 <script>
-  import { mountCards } from "../scripts/user-recipes.ts";
+  import { getAll, mountCards } from "../scripts/user-recipes.ts";
   const grid = document.getElementById("user-recipe-grid");
-  if (grid) mountCards(grid);
+  if (grid) {
+    const all = getAll();
+
+    // Hide static cards that the user has locally overridden
+    all.forEach(ur => {
+      const el = document.querySelector<HTMLElement>(`[data-static-recipe-id="${ur.id}"]`);
+      if (el) el.style.display = "none";
+    });
+
+    mountCards(grid, all);
+  }
 </script>

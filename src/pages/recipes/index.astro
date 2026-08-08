@@ -84,6 +84,13 @@ const recipes = filtered.map(r => ({
   if (grid) {
     const cat = grid.dataset.category ?? "All";
     const all = getAll();
+
+    // Hide static cards that the user has locally overridden
+    all.forEach(ur => {
+      const el = document.querySelector<HTMLElement>(`[data-static-recipe-id="${ur.id}"]`);
+      if (el) el.style.display = "none";
+    });
+
     const filtered = cat === "All" ? all : all.filter(r => r.category === cat);
     mountCards(grid, filtered);
   }
