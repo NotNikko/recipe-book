@@ -9,6 +9,7 @@ interface Props {
 }
 
 const { title = "Cookbook" } = Astro.props;
+const _sitePass = import.meta.env.PUBLIC_MANAGE_PASSWORD ?? "";
 ---
 
 <html lang="en">
@@ -24,21 +25,52 @@ const { title = "Cookbook" } = Astro.props;
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Cookbook" />
 
+<!-- Password baked in at build time — passed to the inline gate script below -->
+<meta name="site-auth-pass" content={_sitePass} />
+
 <link rel="manifest" href="/manifest.json" />
 <link rel="apple-touch-icon" href="/favicon.svg" />
 
-<!-- Theme init — must run before first paint to avoid flash -->
+<!-- Runs before first paint: dark mode + hide page until auth check completes -->
 <script is:inline>
   (function () {
     var s = localStorage.getItem("cookbook-theme");
     var dark = s ? s === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
     document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.style.visibility = "hidden";
   })();
 </script>
 
 </head>
 
 <body>
+
+<!-- ── Password gate (full-screen, shown when not authenticated) ────────── -->
+<div id="site-gate" style="display:none"
+  class="fixed inset-0 z-[999] items-center justify-center bg-[var(--color-bg)] p-4">
+  <div class="w-full max-w-sm space-y-6 text-center">
+    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-3xl text-white">
+      🔒
+    </div>
+    <div>
+      <h1 class="text-3xl">Family Cookbook</h1>
+      <p class="mt-2 text-[var(--color-text-muted)]">Enter the password to continue</p>
+    </div>
+    <div class="space-y-3">
+      <input id="gate-input" type="password" autocomplete="current-password"
+        class="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-center text-lg outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+        placeholder="Password" />
+      <p id="gate-error" style="display:none" class="text-sm text-[var(--color-danger)]">Incorrect password — try again.</p>
+      <button id="gate-submit"
+        class="w-full rounded-full bg-[var(--color-primary)] py-3 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)] active:scale-95">
+        Unlock
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Site content (hidden until authenticated) ─────────────────────────── -->
+<div id="site-content" style="display:none">
 
 <Navbar />
 
@@ -48,7 +80,52 @@ const { title = "Cookbook" } = Astro.props;
 
 <Footer />
 
-</body>
+</div>
+
+<!-- Auth gate script — runs synchronously at end of body, before any async scripts -->
+<script is:inline>
+(function () {
+  var PASS = document.querySelector('meta[name="site-auth-pass"]')?.getAttribute("content") ?? "";
+  var KEY  = "cookbook-site-auth";
+  var gate    = document.getElementById("site-gate");
+  var content = document.getElementById("site-content");
+
+  var authed = !PASS || localStorage.getItem(KEY) === "true";
+
+  if (authed) {
+    if (gate)    gate.style.display = "none";
+    if (content) content.removeAttribute("style");
+  } else {
+    if (gate) gate.style.display = "flex";
+  }
+
+  // Page is ready — reveal it now that display states are set
+  document.documentElement.style.visibility = "";
+
+  if (!authed) {
+    var input = document.getElementById("gate-input");
+    var error = document.getElementById("gate-error");
+    if (input) setTimeout(function () { input.focus(); }, 50);
+
+    function tryUnlock() {
+      if (input && input.value === PASS) {
+        localStorage.setItem(KEY, "true");
+        if (gate)    gate.style.display = "none";
+        if (content) content.removeAttribute("style");
+      } else {
+        if (error) error.style.display = "block";
+        if (input) { input.value = ""; input.focus(); }
+      }
+    }
+
+    var btn = document.getElementById("gate-submit");
+    if (btn) btn.addEventListener("click", tryUnlock);
+    if (input) input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") tryUnlock();
+    });
+  }
+})();
+</script>
 
 <script>
   // Only register SW in production — skip on localhost to avoid stale cache in dev
@@ -56,5 +133,7 @@ const { title = "Cookbook" } = Astro.props;
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
 </script>
+
+</body>
 
 </html>

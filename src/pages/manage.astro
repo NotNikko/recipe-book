@@ -5,32 +5,6 @@ import Container from "../components/layout/Container.astro";
 
 <BaseLayout title="Manage Recipes — Cookbook">
 
-<!-- ── Password gate ─────────────────────────────────────────────────────── -->
-<div id="password-gate" style="display:none"
-  class="fixed inset-0 z-[400] items-center justify-center bg-[var(--color-bg)] p-4">
-  <div class="w-full max-w-sm space-y-6 text-center">
-    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-3xl text-white">
-      🔒
-    </div>
-    <div>
-      <h1 class="text-3xl">Family Cookbook</h1>
-      <p class="mt-2 text-[var(--color-text-muted)]">Enter the password to manage recipes</p>
-    </div>
-    <div class="space-y-3">
-      <input id="pw-input" type="password" autocomplete="current-password"
-        class="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-center text-lg outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-        placeholder="Password" />
-      <p id="pw-error" class="hidden text-sm text-[var(--color-danger)]">Incorrect password — try again.</p>
-      <button id="pw-submit"
-        class="w-full rounded-full bg-[var(--color-primary)] py-3 text-sm font-medium text-white transition hover:bg-[var(--color-primary-hover)] active:scale-95">
-        Unlock
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ── Protected content ──────────────────────────────────────────────────── -->
-<div id="manage-content" style="display:none">
 
 <!-- ── Toast ─────────────────────────────────────────────────────────────── -->
 <div id="toast" aria-live="polite"
@@ -239,8 +213,6 @@ import Container from "../components/layout/Container.astro";
   </div>
 </Container>
 
-</div> <!-- /manage-content -->
-
 </BaseLayout>
 
 <style>
@@ -251,42 +223,6 @@ import Container from "../components/layout/Container.astro";
 
 <script>
   import { getAll, upsert, remove, localHref, type UserRecipe } from "../scripts/user-recipes.ts";
-
-  // ── Password gate ──────────────────────────────────────────────────────────
-  const MANAGE_PASSWORD = import.meta.env.PUBLIC_MANAGE_PASSWORD ?? "";
-  const AUTH_KEY        = "cookbook-manage-auth";
-
-  const gate    = document.getElementById("password-gate")!;
-  const content = document.getElementById("manage-content")!;
-
-  function unlock() {
-    gate.style.display   = "none";
-    content.style.display = "";
-    sessionStorage.setItem(AUTH_KEY, "true");
-  }
-
-  if (!MANAGE_PASSWORD || sessionStorage.getItem(AUTH_KEY) === "true") {
-    unlock();
-  } else {
-    gate.style.display = "flex";
-    const pwInput  = document.getElementById("pw-input") as HTMLInputElement;
-    const pwError  = document.getElementById("pw-error")!;
-    const pwSubmit = document.getElementById("pw-submit")!;
-    setTimeout(() => pwInput.focus(), 50);
-
-    function tryPassword() {
-      if (pwInput.value === MANAGE_PASSWORD) {
-        unlock();
-      } else {
-        pwError.classList.remove("hidden");
-        pwInput.value = "";
-        pwInput.focus();
-      }
-    }
-
-    pwSubmit.addEventListener("click", tryPassword);
-    pwInput.addEventListener("keydown", e => { if (e.key === "Enter") tryPassword(); });
-  }
 
   // ── Toast ──────────────────────────────────────────────────────────────────
   const toastEl  = document.getElementById("toast")!;

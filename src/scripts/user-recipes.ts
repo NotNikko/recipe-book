@@ -44,7 +44,8 @@ export function remove(id: string) {
 }
 
 export function localHref(id: string): string {
-  return `${import.meta.env.BASE_URL}recipes/local?id=${id}`;
+  const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+  return `${base}recipes/local?id=${id}`;
 }
 
 function esc(s: string): string {

@@ -30,7 +30,7 @@ const recipes = allRecipes.map(r => ({
       <div id="fav-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {recipes.map(r => (
           <div class="fav-wrapper hidden" data-recipe-id={r.id}>
-            <RecipeCard {...r} href={`${import.meta.env.BASE_URL}recipes/${r.id}`} />
+            <RecipeCard {...r} href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}recipes/${r.id}`} />
           </div>
         ))}
         <!-- User recipes injected here by script -->

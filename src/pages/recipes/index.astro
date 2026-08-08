@@ -16,6 +16,8 @@ const filtered = activeCategory === "All"
   ? allRecipes
   : allRecipes.filter(r => r.data.category === activeCategory);
 
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+
 const recipes = filtered.map(r => ({
   id: r.id.replace(/\.md$/, ""),
   title: r.data.title,
@@ -25,7 +27,7 @@ const recipes = filtered.map(r => ({
   difficulty: r.data.difficulty,
   prepTime: r.data.prepTime,
   servings: r.data.servings,
-  href: `${import.meta.env.BASE_URL}recipes/${r.id.replace(/\.md$/, "")}`,
+  href: `${base}recipes/${r.id.replace(/\.md$/, "")}`,
 }));
 ---
 
@@ -50,7 +52,7 @@ const recipes = filtered.map(r => ({
       <div class="flex flex-wrap gap-2">
         {["All", ...categories].map(cat => (
           <a
-            href={cat === "All" ? `${import.meta.env.BASE_URL}recipes` : `${import.meta.env.BASE_URL}recipes?category=${encodeURIComponent(cat)}`}
+            href={cat === "All" ? `${base}recipes` : `${base}recipes?category=${encodeURIComponent(cat)}`}
             class={`rounded-full px-4 py-2 text-sm transition ${
               activeCategory === cat
                 ? "bg-[var(--color-primary)] text-white"

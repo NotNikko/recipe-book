@@ -23,6 +23,8 @@ const recipeId = recipe.id.replace(/\.md$/, "");
 
 const { Content } = await render(recipe);
 
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+
 const allRecipes = await getCollection("recipes");
 const related = allRecipes
   .filter(r => r.id !== recipe.id && r.data.category === data.category)
@@ -36,7 +38,7 @@ const related = allRecipes
     difficulty: r.data.difficulty,
     prepTime: r.data.prepTime,
     servings: r.data.servings,
-    href: `${import.meta.env.BASE_URL}recipes/${r.id.replace(/\.md$/, "")}`,
+    href: `${base}recipes/${r.id.replace(/\.md$/, "")}`,
   }));
 ---
 
@@ -116,7 +118,7 @@ const related = allRecipes
 
 </BaseLayout>
 
-<script define:vars={{ base: import.meta.env.BASE_URL, recipeId, recipeData: {
+<script define:vars={{ base, recipeId, recipeData: {
   title: data.title,
   description: data.description,
   image: data.image ?? "",

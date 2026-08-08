@@ -31,10 +31,12 @@ for (const r of allRecipes) {
   categoryMap.set(cat, (categoryMap.get(cat) ?? 0) + 1);
 }
 
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+
 const categories = [...categoryMap.entries()].map(([name, count]) => ({
   name,
   count,
-  href: `${import.meta.env.BASE_URL}recipes?category=${encodeURIComponent(name)}`,
+  href: `${base}recipes?category=${encodeURIComponent(name)}`,
   icon: CATEGORY_ICONS[name] ?? "🍴",
 }));
 
@@ -47,7 +49,7 @@ const recipes = allRecipes.map(r => ({
   difficulty: r.data.difficulty,
   prepTime: r.data.prepTime,
   servings: r.data.servings,
-  href: `${import.meta.env.BASE_URL}recipes/${r.id.replace(/\.md$/, "")}`,
+  href: `${base}recipes/${r.id.replace(/\.md$/, "")}`,
 }));
 ---
 
@@ -74,7 +76,7 @@ const recipes = allRecipes.map(r => ({
             title={featured.data.title}
             description={featured.data.description}
             image={featured.data.image}
-            href={`${import.meta.env.BASE_URL}recipes/${featured.id.replace(/\.md$/, "")}`}
+            href={`${base}recipes/${featured.id.replace(/\.md$/, "")}`}
             prepTime={featured.data.prepTime}
             cookTime={featured.data.cookTime}
             servings={featured.data.servings}

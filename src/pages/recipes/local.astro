@@ -8,7 +8,7 @@ import Container from "../../components/layout/Container.astro";
   <!-- Not found -->
   <div id="not-found" class="hidden py-32 text-center">
     <p class="text-xl text-[var(--color-text-muted)]">Recipe not found.</p>
-    <a href={import.meta.env.BASE_URL + 'manage'} class="mt-4 inline-block text-[var(--color-primary)] underline">← Go to Manage</a>
+    <a href={import.meta.env.BASE_URL.replace(/\/?$/, '/') + 'manage'} class="mt-4 inline-block text-[var(--color-primary)] underline">← Go to Manage</a>
   </div>
 
   <!-- Recipe shell (populated by script) -->
@@ -222,7 +222,7 @@ import Container from "../../components/layout/Container.astro";
     });
 
     // Edit link
-    (document.getElementById("local-edit-link") as HTMLAnchorElement).href = `${import.meta.env.BASE_URL}manage?edit=${id}`;
+    (document.getElementById("local-edit-link") as HTMLAnchorElement).href = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}manage?edit=${id}`;
 
     // ── Cooking Mode ──────────────────────────────────────────────────────
     const overlay   = document.getElementById("cm-overlay")!;

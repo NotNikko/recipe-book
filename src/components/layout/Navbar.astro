@@ -2,9 +2,9 @@
 import Container from "./Container.astro";
 import Logo from "./Logo.astro";
 
-const base = import.meta.env.BASE_URL;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const links = [
-  { href: base,                  label: "Home" },
+  { href: base,                 label: "Home" },
   { href: `${base}recipes`,    label: "Recipes" },
   { href: `${base}favorites`,  label: "Favorites" },
   { href: `${base}manage`,     label: "Manage" },
