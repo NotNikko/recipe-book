@@ -31,7 +31,7 @@ instructions:
   - "Add EVOO to pan"
   - "Chop onion & add to pan"
   - "Chop garlic & add to pan"
-  - "Add 150gr of spinach & sauté"
+  - "Add 150gr of spinach & sautÃ©"
   - "Flavor with salt & Pepper"
   - "Cook for 2/3 minutes"
   - "In bowl add & mix by hand"
